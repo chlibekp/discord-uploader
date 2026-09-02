@@ -1,5 +1,5 @@
 import type { Redis } from "ioredis";
-import { rm, mkdir, readdir, stat } from "node:fs/promises";
+import { rm, mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Config } from "../config.js";
 import type { FileRecord } from "../types.js";
@@ -22,6 +22,26 @@ export function filePath(config: Config, record: Pick<FileRecord, "id" | "name">
 
 export async function ensureDataDir(config: Config): Promise<void> {
   await mkdir(config.dataDir, { recursive: true });
+}
+
+/**
+ * Fail at boot rather than on the first upload.
+ *
+ * A mounted volume arrives owned by root, so a container running as another user
+ * can read the directory but not write to it. mkdir on an existing directory
+ * succeeds regardless, which would otherwise hide the problem until a user
+ * already had an upload link in hand.
+ */
+export async function verifyDataDirWritable(config: Config): Promise<void> {
+  const probe = path.join(config.dataDir, ".write-probe");
+  try {
+    await writeFile(probe, "ok");
+    await rm(probe, { force: true });
+  } catch (err) {
+    throw new Error(
+      `Data directory ${config.dataDir} is not writable: ${(err as Error).message}`,
+    );
+  }
 }
 
 export async function saveRecord(redis: Redis, record: FileRecord): Promise<void> {

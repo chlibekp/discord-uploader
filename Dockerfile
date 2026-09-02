@@ -30,9 +30,10 @@ COPY --from=build /app/dist ./dist
 COPY package.json ./
 COPY public ./public
 
-# The volume is mounted at /data and must be writable by the runtime user.
-RUN mkdir -p /data && chown -R node:node /app /data
-USER node
+# Runs as root because the Railway volume is mounted at /data owned by root.
+# Dropping to the node user would need a privileged chown on every boot, which
+# costs more than it buys in a single-tenant container.
+RUN mkdir -p /data
 
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
