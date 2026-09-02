@@ -1,0 +1,101 @@
+:root {
+  color-scheme: dark;
+  --bg: #12131a;
+  --card: #1b1d27;
+  --line: #2e3140;
+  --text: #e8e9ee;
+  --muted: #9aa0b0;
+  --accent: #5865f2;
+  --ok: #3ba55d;
+  --err: #ed4245;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body.centered {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.card {
+  width: min(560px, 100%);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 28px;
+  display: grid;
+  gap: 18px;
+}
+
+h1 { margin: 0 0 4px; font-size: 20px; letter-spacing: -0.01em; }
+p { margin: 0; }
+.muted { color: var(--muted); font-size: 13px; }
+code { background: #0d0e14; padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+
+.drop {
+  display: grid;
+  gap: 6px;
+  place-items: center;
+  padding: 44px 20px;
+  border: 1.5px dashed var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop:focus-visible, .drop.dragging {
+  border-color: var(--accent);
+  background: #20233010;
+  outline: none;
+}
+.drop-title { font-weight: 600; }
+
+.preview { display: grid; gap: 8px; }
+.preview img, .preview video {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #0d0e14;
+}
+
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: #0d0e14;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width .12s linear;
+}
+
+.status { font-size: 13px; min-height: 1.2em; }
+.status.error { color: var(--err); }
+.status.success { color: var(--ok); }
+.status a { color: var(--accent); }
+
+.button {
+  appearance: none;
+  border: 0;
+  border-radius: 9px;
+  padding: 12px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+}
+.button:disabled { opacity: .45; cursor: not-allowed; }
+
+video[controls] { width: 100%; max-height: 70vh; border-radius: 10px; }
