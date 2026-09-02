@@ -101,6 +101,8 @@ code { background: #0d0e14; padding: 2px 6px; border-radius: 5px; font-size: 13p
 video[controls] { width: 100%; max-height: 70vh; border-radius: 10px; }
 
 /* Gallery */
+/* Centred horizontally, but pinned to the top so a long grid scrolls from its
+   first row rather than from the middle of the page. */
 .gallery-body { align-items: start; }
 .card.wide { width: min(1000px, 100%); }
 
