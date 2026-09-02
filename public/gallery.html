@@ -4,16 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Your uploads</title>
+<link rel="icon" href="/assets/mascot-small.png" type="image/png">
 <link rel="stylesheet" href="/assets/upload.css">
 </head>
-<body class="centered gallery-body">
-<main class="card wide">
-  <header>
-    <h1>Your uploads</h1>
-    <p class="muted">{{SUMMARY}}</p>
-  </header>
-  {{TILES}}
-</main>
+<body>
+<header class="bar">
+  <img class="mark" src="/assets/mascot-small.png" alt="" width="40" height="40">
+  <div class="bar-title">
+    <span class="bar-name">Your uploads</span>
+    <span class="bar-sub">{{SUMMARY}}</span>
+  </div>
+  <div class="bar-end"><span class="count">{{COUNT}}</span></div>
+</header>
+{{TILES}}
 <script src="/assets/gallery.js"></script>
 </body>
 </html>

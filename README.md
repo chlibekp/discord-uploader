@@ -7,9 +7,14 @@ Running `/upload` replies privately with a link to a web upload page. You drop i
 image or video, and the bot posts it back into the channel you ran the command in:
 images as an embed, videos as an inline player.
 
-`/gallery` replies with another private link, this one showing a grid of everything
+`/gallery` replies with another private link, this one showing a full-bleed contact
+sheet of everything
 you have uploaded, newest first, with a copy-link button on each tile. It lists only
 your own files, never anyone else's.
+
+The pages share one stylesheet and the mascot in `public/brand/`. Its palette is where
+the interface colours come from, so replacing the sprite means revisiting the custom
+properties at the top of `public/upload.css`.
 
 Runs as a single Railway service with a Redis plugin and a mounted volume.
 
@@ -123,6 +128,7 @@ then served as script from this origin.
 | `POST /interactions` | Discord webhook |
 | `GET /u/:sid` | Upload page |
 | `GET /g/:gid` | Gallery page, scoped to the invoker |
+| `GET /assets/*` | Stylesheet, scripts and the mascot sprite |
 | `POST /u/:sid/file` | Streaming upload |
 | `GET /f/:id/:name` | Serves the file, with Range support |
 | `GET /v/:id` | OG player page for videos |

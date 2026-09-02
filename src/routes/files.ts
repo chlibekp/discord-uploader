@@ -5,6 +5,7 @@ import { Readable } from "node:stream";
 import type { AppDeps } from "../app.js";
 import { fileUrl } from "../discord/followup.js";
 import { parseRange } from "../http/range.js";
+import { brandBar, shell } from "../pages.js";
 import { filePath, getRecord, touchRecord } from "../storage/store.js";
 import type { FileRecord } from "../types.js";
 
@@ -89,11 +90,7 @@ function toWeb(stream: ReturnType<typeof createReadStream>): ReadableStream {
 
 function watchPage(url: string, record: FileRecord): string {
   const title = escapeHtml(record.name);
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title}</title>
-<meta property="og:type" content="video.other">
+  const head = `<meta property="og:type" content="video.other">
 <meta property="og:title" content="${title}">
 <meta property="og:url" content="${escapeHtml(url)}">
 <meta property="og:video" content="${escapeHtml(url)}">
@@ -105,12 +102,16 @@ function watchPage(url: string, record: FileRecord): string {
 <meta name="twitter:player:stream" content="${escapeHtml(url)}">
 <meta name="twitter:player:stream:content_type" content="${escapeHtml(record.mime)}">
 <meta name="twitter:player:width" content="${record.width}">
-<meta name="twitter:player:height" content="${record.height}">
-<link rel="stylesheet" href="/assets/upload.css">
-</head>
-<body class="centered"><main class="card">
+<meta name="twitter:player:height" content="${record.height}">`;
+
+  return shell(
+    title,
+    brandBar(title, `${record.width}\u00d7${record.height}`),
+    `<main class="stage">
 <video controls playsinline preload="metadata" src="${escapeHtml(url)}"></video>
-</main></body></html>`;
+</main>`,
+    head,
+  );
 }
 
 function escapeHtml(value: string): string {

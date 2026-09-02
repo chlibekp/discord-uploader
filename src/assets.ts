@@ -8,16 +8,24 @@ import { fileURLToPath } from "node:url";
  */
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
 
-function read(name: string): string {
+function readText(name: string): string {
   return readFileSync(path.join(publicDir, name), "utf8");
 }
 
+function readBinary(name: string): Buffer {
+  return readFileSync(path.join(publicDir, name));
+}
+
 export const assets = {
-  uploadHtml: read("upload.html"),
-  uploadJs: read("upload.js"),
-  uploadCss: read("upload.css"),
-  galleryHtml: read("gallery.html"),
-  galleryJs: read("gallery.js"),
+  uploadHtml: readText("upload.html"),
+  uploadJs: readText("upload.js"),
+  uploadCss: readText("upload.css"),
+  galleryHtml: readText("gallery.html"),
+  galleryJs: readText("gallery.js"),
+  /** 128px sprite for the brand bar and the favicon. */
+  mascotSmall: readBinary("brand/mascot-small.png"),
+  /** 512px sprite for the empty state and link previews. */
+  mascot: readBinary("brand/mascot.png"),
 };
 
 export const UPLOAD_PAGE_CSP =

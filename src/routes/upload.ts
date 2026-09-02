@@ -7,6 +7,7 @@ import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { AppDeps } from "../app.js";
 import { UPLOAD_PAGE_CSP, assets } from "../assets.js";
+import { expiredShell } from "../pages.js";
 import { buildFollowupPayload, fileUrl, postFollowup, watchUrl } from "../discord/followup.js";
 import { requestNodeStream } from "../http/body.js";
 import { sweep } from "../storage/lru.js";
@@ -43,20 +44,6 @@ export function uploadRoutes(deps: AppDeps): Hono {
       "Cache-Control": "no-store",
     });
   });
-
-  app.get("/assets/upload.js", (c) =>
-    c.body(assets.uploadJs, 200, {
-      "Content-Type": "text/javascript; charset=utf-8",
-      "Cache-Control": "no-cache",
-    }),
-  );
-
-  app.get("/assets/upload.css", (c) =>
-    c.body(assets.uploadCss, 200, {
-      "Content-Type": "text/css; charset=utf-8",
-      "Cache-Control": "no-cache",
-    }),
-  );
 
   app.post("/u/:sid/file", async (c) => {
     const sid = c.req.param("sid");
@@ -257,13 +244,5 @@ function dimension(raw: string | undefined, fallback: number): number {
 }
 
 function expiredPage(): string {
-  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Link expired</title><link rel="stylesheet" href="/assets/upload.css"></head>
-<body class="centered"><main class="card">
-<h1>Link expired</h1>
-<p>This upload link has already been used or has run out of time.</p>
-<p>Run <code>/upload</code> in Discord again to get a new one.</p>
-</main></body></html>`;
+  return expiredShell("This upload link has already been used or has run out of time.", "upload");
 }

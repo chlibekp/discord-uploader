@@ -102,7 +102,7 @@ describe("gallery page", () => {
 
     expect(html).toContain("first.png");
     expect(html).toContain("second.png");
-    expect(html).toContain("2 files");
+    expect(html).toContain(">2 files<");
     expect(html.indexOf("second.png")).toBeLessThan(html.indexOf("first.png"));
   });
 
@@ -114,13 +114,13 @@ describe("gallery page", () => {
 
     expect(html).toContain("mine.png");
     expect(html).not.toContain("theirs.png");
-    expect(html).toContain("1 file,");
+    expect(html).toContain(">1 file<");
   });
 
   it("shows an empty state for a user with no uploads", async () => {
     const html = await (await openGallery("nobody")).text();
-    expect(html).toContain("not uploaded anything yet");
-    expect(html).not.toContain("<div class=\"grid\">");
+    expect(html).toContain("No files yet");
+    expect(html).not.toContain('class="sheet"');
   });
 
   it("offers the watch page for videos and the file itself for images", async () => {
@@ -181,6 +181,39 @@ describe("gallery page", () => {
     const res = await h.app.fetch(new Request("https://uploader.test/assets/gallery.js"));
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toContain("text/javascript");
+  });
+
+  it("brands every page from the same sprite", async () => {
+    const html = await (await openGallery("user-42")).text();
+    expect(html).toContain('src="/assets/mascot-small.png"');
+
+    for (const route of ["/assets/mascot.png", "/assets/mascot-small.png", "/favicon.ico"]) {
+      const res = await h.app.fetch(new Request(`https://uploader.test${route}`));
+      expect(res.status, route).toBe(200);
+      expect(res.headers.get("Content-Type"), route).toBe("image/png");
+    }
+  });
+
+  it("keeps a long filename on one line and marks videos as playable", async () => {
+    const sid = await openSession(uploadCommand({ member: { user: { id: "user-42" } } }));
+    const part = multipart({ width: "1920", height: "1080" }, {
+      field: "file",
+      filename: "a-long-upload-name-that-would-otherwise-wrap.mp4",
+      contentType: "video/mp4",
+      content: fixtures.mp4(),
+    });
+    await h.app.fetch(
+      new Request(`https://uploader.test/u/${sid}/file`, {
+        method: "POST",
+        headers: { "Content-Type": part.contentType },
+        body: part.body,
+      }),
+    );
+
+    const html = await (await openGallery("user-42")).text();
+    // The full name stays reachable as a tooltip even though the tile clips it.
+    expect(html).toContain('title="a-long-upload-name-that-would-otherwise-wrap.mp4"');
+    expect(html).toContain('<span class="badge">VIDEO</span>');
   });
 });
 

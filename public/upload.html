@@ -4,18 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Upload</title>
+<link rel="icon" href="/assets/mascot-small.png" type="image/png">
 <link rel="stylesheet" href="/assets/upload.css">
 </head>
-<body class="centered"
-      data-sid="{{SID}}"
+<body data-sid="{{SID}}"
       data-expires-at="{{EXPIRES_AT}}"
       data-max-bytes="{{MAX_FILE_BYTES}}">
-<main class="card">
-  <header>
-    <h1>Upload</h1>
-    <p class="muted">Images and videos. Link expires in <span id="countdown">--:--</span>.</p>
-  </header>
+<header class="bar">
+  <img class="mark" src="/assets/mascot-small.png" alt="" width="40" height="40">
+  <div class="bar-title">
+    <span class="bar-name">Upload</span>
+    <span class="bar-sub">Images and videos</span>
+  </div>
+  <div class="bar-end">Expires in <span id="countdown" class="count">--:--</span></div>
+</header>
 
+<main class="centered">
+<div class="card">
   <label id="drop" class="drop" for="picker" tabindex="0">
     <span class="drop-title">Drop a file here</span>
     <span class="muted">or click to choose</span>
@@ -34,6 +39,7 @@
   <p id="status" class="status" role="status"></p>
 
   <button id="send" class="button" type="button" disabled>Upload</button>
+</div>
 </main>
 <script src="/assets/upload.js"></script>
 </body>

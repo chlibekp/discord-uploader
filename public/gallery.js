@@ -14,6 +14,7 @@ document.addEventListener("click", async (event) => {
   try {
     await navigator.clipboard.writeText(url);
     button.textContent = "Copied";
+    button.classList.add("copied");
   } catch {
     // Clipboard access is refused outside a secure context or without focus.
     button.textContent = "Press Ctrl+C";
@@ -27,5 +28,6 @@ document.addEventListener("click", async (event) => {
 
   setTimeout(() => {
     button.textContent = original;
+    button.classList.remove("copied");
   }, 1600);
 });
