@@ -1,11 +1,15 @@
 # discord-uploader
 
-A Discord bot with one command, `/upload`. It is **user-installable**, so it works in
+A Discord bot with two commands, `/upload` and `/gallery`. It is **user-installable**, so it works in
 any server, DM, or group DM you are in — the bot does not have to be a member there.
 
 Running `/upload` replies privately with a link to a web upload page. You drop in an
 image or video, and the bot posts it back into the channel you ran the command in:
 images as an embed, videos as an inline player.
+
+`/gallery` replies with another private link, this one showing a grid of everything
+you have uploaded, newest first, with a copy-link button on each tile. It lists only
+your own files, never anyone else's.
 
 Runs as a single Railway service with a Redis plugin and a mounted volume.
 
@@ -21,8 +25,12 @@ Discord ──POST /interactions──► service ──create session──► 
                           followup webhook ──► public message in channel
 ```
 
-Each `/upload` mints a single-use session with a 128-bit random id. The link is
-ephemeral, works once, and expires in 14 minutes.
+Each command mints a single-use session with a 128-bit random id. The link is
+ephemeral, works once, and expires in 14 minutes. A session records which command
+opened it, so an upload link cannot be spent on the gallery route or the reverse.
+
+The gallery renders in full on the first request and spends its session doing it, so a
+reload finds a dead link. Run `/gallery` again for a fresh one.
 
 ### The 14-minute limit
 
@@ -89,7 +97,9 @@ would have a different disk and 404 on files the first one wrote. `railway.json`
 ## Storage and eviction
 
 Files live at `/data/{fileId}/{name}.{ext}`, one directory each. Redis holds the
-metadata plus a `files:lru` sorted set scored by last access.
+metadata, a `files:lru` sorted set scored by last access, and a `user:{id}:files` set
+per uploader that backs `/gallery`. The per-user sets are derived data and are rebuilt
+from the file records at boot, so files stored before the gallery existed still show up.
 
 After each upload, a sweep deletes least-recently-accessed files until total usage fits
 `MAX_TOTAL_BYTES`. Files younger than 60 seconds are never evicted — otherwise an
@@ -112,6 +122,7 @@ then served as script from this origin.
 | --- | --- |
 | `POST /interactions` | Discord webhook |
 | `GET /u/:sid` | Upload page |
+| `GET /g/:gid` | Gallery page, scoped to the invoker |
 | `POST /u/:sid/file` | Streaming upload |
 | `GET /f/:id/:name` | Serves the file, with Range support |
 | `GET /v/:id` | OG player page for videos |

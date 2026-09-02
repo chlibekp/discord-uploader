@@ -5,7 +5,7 @@ import path from "node:path";
 import RedisMock from "ioredis-mock";
 import type { Redis } from "ioredis";
 import { PROTECT_WINDOW_MS, reconcile, sweep } from "../src/storage/lru.js";
-import { LRU_KEY, TOTAL_KEY, fileDir, saveRecord, totalBytes } from "../src/storage/store.js";
+import { LRU_KEY, TOTAL_KEY, USER_KEY, fileDir, saveRecord, totalBytes } from "../src/storage/store.js";
 import { rmSync } from "node:fs";
 import { testConfig } from "./helpers.js";
 import type { Config } from "../src/config.js";
@@ -114,6 +114,24 @@ describe("reconcile", () => {
     await reconcile(redis, config);
     expect(await redis.zrange(LRU_KEY, 0, -1)).toEqual([]);
     expect(await totalBytes(redis)).toBe(0);
+  });
+
+  it("rebuilds the per-user index, so files stored before it existed are listed", async () => {
+    await addFile("a", 100, Date.now());
+    await redis.del(USER_KEY("u1"));
+
+    await reconcile(redis, config);
+
+    expect(await redis.zrange(USER_KEY("u1"), 0, -1)).toEqual(["a"]);
+  });
+
+  it("clears index entries for files that no longer exist", async () => {
+    await addFile("a", 100, Date.now());
+    await redis.zadd(USER_KEY("u1"), Date.now(), "ghost");
+
+    await reconcile(redis, config);
+
+    expect(await redis.zrange(USER_KEY("u1"), 0, -1)).toEqual(["a"]);
   });
 
   it("removes orphan directories with no record", async () => {

@@ -16,6 +16,8 @@ export const assets = {
   uploadHtml: read("upload.html"),
   uploadJs: read("upload.js"),
   uploadCss: read("upload.css"),
+  galleryHtml: read("gallery.html"),
+  galleryJs: read("gallery.js"),
 };
 
 export const UPLOAD_PAGE_CSP =

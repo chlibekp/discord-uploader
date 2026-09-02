@@ -1,14 +1,27 @@
 import type { Config } from "../config.js";
 
+// 0 = guild install, 1 = user install. Both, so the commands follow the user.
+const INTEGRATION_TYPES = [0, 1];
+// 0 = guild, 1 = bot DM, 2 = private channel (DMs and group DMs).
+const CONTEXTS = [0, 1, 2];
+
 export const UPLOAD_COMMAND = {
   name: "upload",
   description: "Upload an image or video",
   type: 1,
-  // 0 = guild install, 1 = user install. Both, so the command follows the user.
-  integration_types: [0, 1],
-  // 0 = guild, 1 = bot DM, 2 = private channel (DMs and group DMs).
-  contexts: [0, 1, 2],
+  integration_types: INTEGRATION_TYPES,
+  contexts: CONTEXTS,
 } as const;
+
+export const GALLERY_COMMAND = {
+  name: "gallery",
+  description: "Browse everything you have uploaded",
+  type: 1,
+  integration_types: INTEGRATION_TYPES,
+  contexts: CONTEXTS,
+} as const;
+
+export const COMMANDS = [UPLOAD_COMMAND, GALLERY_COMMAND];
 
 /**
  * Overwrite the application's global commands. PUT is a full replace, so this is
@@ -32,14 +45,14 @@ export async function registerCommands(
         Authorization: `Bot ${config.discordBotToken}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify([UPLOAD_COMMAND]),
+      body: JSON.stringify(COMMANDS),
     });
 
     if (!res.ok) {
       console.error(`Command registration failed: ${res.status} ${await res.text()}`);
       return false;
     }
-    console.log("Registered global command /upload");
+    console.log(`Registered global commands: ${COMMANDS.map((c) => `/${c.name}`).join(", ")}`);
     return true;
   } catch (err) {
     console.error("Command registration request failed:", err);

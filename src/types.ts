@@ -6,8 +6,11 @@ export interface SniffResult {
   kind: MediaKind;
 }
 
+export type SessionKind = "upload" | "gallery";
+
 export interface UploadSession {
   sid: string;
+  kind: SessionKind;
   userId: string;
   channelId: string;
   guildId: string;

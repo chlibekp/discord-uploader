@@ -29,7 +29,7 @@ export function uploadRoutes(deps: AppDeps): Hono {
 
   app.get("/u/:sid", async (c) => {
     const session = await getSession(deps.redis, c.req.param("sid"));
-    if (!session) {
+    if (!session || session.kind !== "upload") {
       return c.html(expiredPage(), 404, { "Content-Security-Policy": UPLOAD_PAGE_CSP });
     }
 
@@ -72,6 +72,10 @@ export function uploadRoutes(deps: AppDeps): Hono {
     }
     if (claim.status === "claimed") {
       return c.json({ error: "This upload link has already been used" }, 409);
+    }
+    // A gallery session must not be spendable as an upload slot.
+    if (claim.session.kind !== "upload") {
+      return c.json({ error: "This upload link has expired" }, 404);
     }
 
     const session = claim.session;

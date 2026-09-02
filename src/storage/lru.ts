@@ -3,6 +3,7 @@ import type { Config } from "../config.js";
 import {
   LRU_KEY,
   TOTAL_KEY,
+  USER_KEY,
   deleteRecord,
   dirSize,
   getRecord,
@@ -77,5 +78,27 @@ export async function reconcile(redis: Redis, config: Config): Promise<void> {
   }
 
   await redis.set(TOTAL_KEY, String(total));
+  await rebuildUserIndex(redis, [...stillKnown]);
   console.log(`Reconciled storage: ${stillKnown.size} files, ${total} bytes`);
+}
+
+/**
+ * Rebuild the per-user indexes from the surviving file records.
+ *
+ * They are derived data, so recomputing costs little and covers both files
+ * stored before the index existed and entries left behind by a delete that ran
+ * without a record to read the owner from.
+ */
+async function rebuildUserIndex(redis: Redis, ids: string[]): Promise<void> {
+  const stale = await redis.keys(USER_KEY("*"));
+  if (stale.length > 0) await redis.del(...stale);
+
+  let indexed = 0;
+  for (const id of ids) {
+    const record = await getRecord(redis, id);
+    if (!record?.userId) continue;
+    await redis.zadd(USER_KEY(record.userId), record.createdAt, id);
+    indexed += 1;
+  }
+  console.log(`Rebuilt per-user index for ${indexed} files`);
 }

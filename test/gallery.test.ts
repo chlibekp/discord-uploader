@@ -1,0 +1,217 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { USER_KEY, listUserFiles } from "../src/storage/store.js";
+import {
+  fixtures,
+  interactionRequest,
+  makeHarness,
+  multipart,
+  uploadCommand,
+  type Harness,
+} from "./helpers.js";
+
+let h: Harness;
+
+beforeEach(async () => {
+  h = await makeHarness();
+});
+
+afterEach(() => {
+  h.cleanup();
+});
+
+function galleryCommand(userId: string) {
+  return uploadCommand({ data: { name: "gallery", type: 1 }, member: { user: { id: userId } } });
+}
+
+async function openSession(payload: unknown): Promise<string> {
+  const res = await h.app.fetch(interactionRequest(payload));
+  const url: string = (await res.json()).data.components[0].components[0].url;
+  return url.split("/").pop() as string;
+}
+
+/** Run the full /upload flow so the file lands in Redis and on disk. */
+async function uploadAs(userId: string, filename = "photo.png"): Promise<string> {
+  const sid = await openSession(uploadCommand({ member: { user: { id: userId } } }));
+  const part = multipart({ width: "800", height: "600" }, {
+    field: "file",
+    filename,
+    contentType: "image/png",
+    content: fixtures.png(),
+  });
+
+  const res = await h.app.fetch(
+    new Request(`https://uploader.test/u/${sid}/file`, {
+      method: "POST",
+      headers: { "Content-Type": part.contentType },
+      body: part.body,
+    }),
+  );
+  return (await res.json()).fileUrl;
+}
+
+async function openGallery(userId: string): Promise<Response> {
+  const gid = await openSession(galleryCommand(userId));
+  return h.app.fetch(new Request(`https://uploader.test/g/${gid}`));
+}
+
+describe("/gallery command", () => {
+  it("replies ephemerally with a link to the gallery route", async () => {
+    const res = await h.app.fetch(interactionRequest(galleryCommand("user-42")));
+    const body = await res.json();
+
+    expect(body.data.flags).toBe(64);
+    const button = body.data.components[0].components[0];
+    expect(button.url).toMatch(/^https:\/\/uploader\.test\/g\/[\w-]{22}$/);
+    expect(button.label).toBe("Open gallery");
+  });
+
+  it("marks the session so it cannot be spent on the upload routes", async () => {
+    const gid = await openSession(galleryCommand("user-42"));
+    expect((await h.deps.redis.hgetall(`sess:${gid}`)).kind).toBe("gallery");
+
+    expect((await h.app.fetch(new Request(`https://uploader.test/u/${gid}`))).status).toBe(404);
+
+    const part = multipart({}, {
+      field: "file",
+      filename: "x.png",
+      contentType: "image/png",
+      content: fixtures.png(),
+    });
+    const res = await h.app.fetch(
+      new Request(`https://uploader.test/u/${gid}/file`, {
+        method: "POST",
+        headers: { "Content-Type": part.contentType },
+        body: part.body,
+      }),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("rejects an upload session used on the gallery route", async () => {
+    const sid = await openSession(uploadCommand());
+    expect((await h.app.fetch(new Request(`https://uploader.test/g/${sid}`))).status).toBe(404);
+  });
+});
+
+describe("gallery page", () => {
+  it("lists the invoker's uploads, newest first", async () => {
+    await uploadAs("user-42", "first.png");
+    await uploadAs("user-42", "second.png");
+
+    const html = await (await openGallery("user-42")).text();
+
+    expect(html).toContain("first.png");
+    expect(html).toContain("second.png");
+    expect(html).toContain("2 files");
+    expect(html.indexOf("second.png")).toBeLessThan(html.indexOf("first.png"));
+  });
+
+  it("never shows another user's files", async () => {
+    await uploadAs("user-42", "mine.png");
+    await uploadAs("intruder", "theirs.png");
+
+    const html = await (await openGallery("user-42")).text();
+
+    expect(html).toContain("mine.png");
+    expect(html).not.toContain("theirs.png");
+    expect(html).toContain("1 file,");
+  });
+
+  it("shows an empty state for a user with no uploads", async () => {
+    const html = await (await openGallery("nobody")).text();
+    expect(html).toContain("not uploaded anything yet");
+    expect(html).not.toContain("<div class=\"grid\">");
+  });
+
+  it("offers the watch page for videos and the file itself for images", async () => {
+    await uploadAs("user-42", "shot.png");
+
+    const sid = await openSession(uploadCommand({ member: { user: { id: "user-42" } } }));
+    const part = multipart({ width: "1920", height: "1080" }, {
+      field: "file",
+      filename: "clip.mp4",
+      contentType: "video/mp4",
+      content: fixtures.mp4(),
+    });
+    await h.app.fetch(
+      new Request(`https://uploader.test/u/${sid}/file`, {
+        method: "POST",
+        headers: { "Content-Type": part.contentType },
+        body: part.body,
+      }),
+    );
+
+    const html = await (await openGallery("user-42")).text();
+
+    expect(html).toMatch(/data-copy="https:\/\/uploader\.test\/v\/[\w-]{22}"/);
+    expect(html).toMatch(/data-copy="https:\/\/uploader\.test\/f\/[\w-]{22}\/shot\.png"/);
+  });
+
+  it("escapes filenames rather than rendering them as markup", async () => {
+    // The stored name is already slugified, so this asserts the second line of
+    // defence rather than the first.
+    await uploadAs("user-42", "ok.png");
+    await h.deps.redis.hset(
+      `file:${(await h.deps.redis.zrange(USER_KEY("user-42"), 0, 0))[0]}`,
+      "name",
+      '"><script>alert(1)</script>.png',
+    );
+
+    const html = await (await openGallery("user-42")).text();
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;script&gt;");
+  });
+
+  it("burns the session, so a reload finds a dead link", async () => {
+    const gid = await openSession(galleryCommand("user-42"));
+
+    expect((await h.app.fetch(new Request(`https://uploader.test/g/${gid}`))).status).toBe(200);
+    const second = await h.app.fetch(new Request(`https://uploader.test/g/${gid}`));
+    expect(second.status).toBe(404);
+    expect(await second.text()).toContain("Link expired");
+  });
+
+  it("sets the same strict CSP as the upload page", async () => {
+    const res = await openGallery("user-42");
+    expect(res.headers.get("Content-Security-Policy")).toContain("script-src 'self'");
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+  });
+
+  it("serves the gallery script", async () => {
+    const res = await h.app.fetch(new Request("https://uploader.test/assets/gallery.js"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/javascript");
+  });
+});
+
+describe("per-user index", () => {
+  it("indexes a file on upload", async () => {
+    await uploadAs("user-42");
+    expect(await h.deps.redis.zrange(USER_KEY("user-42"), 0, -1)).toHaveLength(1);
+  });
+
+  it("drops the entry when the file is evicted", async () => {
+    h.cleanup();
+    h = await makeHarness({ maxTotalBytes: 700 });
+
+    const first = await uploadAs("user-42", "old.png");
+    const firstId = new URL(first).pathname.split("/")[2] as string;
+    await h.deps.redis.hset(`file:${firstId}`, "createdAt", String(Date.now() - 120_000));
+    await h.deps.redis.zadd("files:lru", Date.now() - 120_000, firstId);
+
+    await uploadAs("user-42", "new.png");
+
+    const remaining = await h.deps.redis.zrange(USER_KEY("user-42"), 0, -1);
+    expect(remaining).not.toContain(firstId);
+    expect(remaining).toHaveLength(1);
+  });
+
+  it("returns records newest first and skips ids with no record", async () => {
+    await uploadAs("user-42", "a.png");
+    await uploadAs("user-42", "b.png");
+    await h.deps.redis.zadd(USER_KEY("user-42"), Date.now() + 1000, "ghost");
+
+    const files = await listUserFiles(h.deps.redis, "user-42");
+    expect(files.map((f) => f.name)).toEqual(["b.png", "a.png"]);
+  });
+});

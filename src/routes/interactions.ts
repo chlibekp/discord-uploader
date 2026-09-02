@@ -47,7 +47,8 @@ export function interactionsRoutes(deps: AppDeps): Hono {
 
     if (body.type === PING) return c.json({ type: PONG });
 
-    if (body.type !== APPLICATION_COMMAND || body.data?.name !== "upload") {
+    const command: string | undefined = body.data?.name;
+    if (body.type !== APPLICATION_COMMAND || (command !== "upload" && command !== "gallery")) {
       return c.json({ error: "Unsupported interaction" }, 400);
     }
 
@@ -60,30 +61,41 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     let session;
     try {
       session = await createSession(deps.redis, {
+        kind: command === "gallery" ? "gallery" : "upload",
         userId,
         channelId,
         guildId: body.guild_id ?? "",
         interactionToken: body.token,
       });
     } catch (err) {
-      console.error("Failed to create upload session:", err);
+      console.error(`Failed to create ${command} session:`, err);
       return c.json({ error: "Session store unavailable" }, 503);
     }
 
-    const url = `${deps.config.publicUrl}/u/${session.sid}`;
     const minutes = Math.floor((session.expiresAt - session.createdAt) / 60_000);
+    const gallery = session.kind === "gallery";
+    const url = `${deps.config.publicUrl}/${gallery ? "g" : "u"}/${session.sid}`;
 
     return c.json({
       type: CHANNEL_MESSAGE_WITH_SOURCE,
       data: {
         flags: EPHEMERAL,
-        content:
-          `Open the link below to upload an image or video. ` +
-          `The link works once and expires in ${minutes} minutes.`,
+        content: gallery
+          ? `Your uploads are behind the link below. ` +
+            `It opens once and expires in ${minutes} minutes.`
+          : `Open the link below to upload an image or video. ` +
+            `The link works once and expires in ${minutes} minutes.`,
         components: [
           {
             type: 1,
-            components: [{ type: 2, style: 5, label: "Open upload page", url }],
+            components: [
+              {
+                type: 2,
+                style: 5,
+                label: gallery ? "Open gallery" : "Open upload page",
+                url,
+              },
+            ],
           },
         ],
       },

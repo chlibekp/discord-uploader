@@ -1,6 +1,6 @@
 import type { Redis } from "ioredis";
 import { randomBytes } from "node:crypto";
-import type { UploadSession } from "../types.js";
+import type { SessionKind, UploadSession } from "../types.js";
 
 /**
  * One minute inside the 15-minute life of an interaction token, so a session
@@ -12,6 +12,11 @@ export type ClaimResult =
   | { status: "ok"; session: UploadSession }
   | { status: "missing" }
   | { status: "claimed" };
+
+/** A session opened by one command must not be spendable on the other's route. */
+export function isKind(session: UploadSession, kind: SessionKind): boolean {
+  return session.kind === kind;
+}
 
 const key = (sid: string) => `sess:${sid}`;
 
@@ -34,6 +39,7 @@ export async function createSession(
   await redis
     .multi()
     .hset(key(session.sid), {
+      kind: session.kind,
       userId: session.userId,
       channelId: session.channelId,
       guildId: session.guildId,
@@ -51,6 +57,7 @@ function hydrate(sid: string, raw: Record<string, string>): UploadSession | null
   if (!raw.interactionToken || !raw.channelId || !raw.userId) return null;
   return {
     sid,
+    kind: raw.kind === "gallery" ? "gallery" : "upload",
     userId: raw.userId,
     channelId: raw.channelId,
     guildId: raw.guildId ?? "",
