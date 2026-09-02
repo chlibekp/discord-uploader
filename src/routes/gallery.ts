@@ -44,7 +44,8 @@ export function galleryRoutes(deps: AppDeps): Hono {
 }
 
 function sheet(config: Config, files: FileRecord[]): string {
-  return `<main class="sheet">${files.map((file) => tile(config, file)).join("")}</main>`;
+  return `<main class="sheet">${files.map((file) => tile(config, file)).join("")}</main>
+<p class="sheet-note">Oldest files are cleared as storage fills. Keep your own copy of anything that matters.</p>`;
 }
 
 function tile(config: Config, file: FileRecord): string {
@@ -60,7 +61,8 @@ function tile(config: Config, file: FileRecord): string {
 <span class="badge">VIDEO</span>`
       : `<img loading="lazy" decoding="async" src="${escapeHtml(direct)}" alt="${name}">`;
 
-  return `<figure class="tile">
+  return `<figure class="tile panel">
+<div class="tile-in">
 <a class="shot" href="${escapeHtml(share)}" target="_blank" rel="noopener">${preview}</a>
 <div class="tile-body">
 <figcaption class="tile-name" title="${name}">${name}</figcaption>
@@ -68,6 +70,7 @@ function tile(config: Config, file: FileRecord): string {
 <div class="tile-actions">
 <a class="button small" href="${escapeHtml(share)}" target="_blank" rel="noopener">Open</a>
 <button class="button small" type="button" data-copy="${escapeHtml(share)}">Copy</button>
+</div>
 </div>
 </div>
 </figure>`;

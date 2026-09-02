@@ -194,6 +194,17 @@ describe("gallery page", () => {
     }
   });
 
+  it("serves the bundled bitmap font, which the CSP requires to be same-origin", async () => {
+    for (const route of ["/assets/silkscreen-400.woff2", "/assets/silkscreen-700.woff2"]) {
+      const res = await h.app.fetch(new Request(`https://uploader.test${route}`));
+      expect(res.status, route).toBe(200);
+      expect(res.headers.get("Content-Type"), route).toBe("font/woff2");
+    }
+
+    const page = await openGallery("user-42");
+    expect(page.headers.get("Content-Security-Policy")).toContain("font-src 'self'");
+  });
+
   it("keeps a long filename on one line and marks videos as playable", async () => {
     const sid = await openSession(uploadCommand({ member: { user: { id: "user-42" } } }));
     const part = multipart({ width: "1920", height: "1080" }, {

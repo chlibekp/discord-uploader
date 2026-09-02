@@ -26,9 +26,12 @@ export const assets = {
   mascotSmall: readBinary("brand/mascot-small.png"),
   /** 512px sprite for the empty state and link previews. */
   mascot: readBinary("brand/mascot.png"),
+  /** Silkscreen, bundled under the OFL so no remote font request is needed. */
+  fontRegular: readBinary("brand/silkscreen-400.woff2"),
+  fontBold: readBinary("brand/silkscreen-700.woff2"),
 };
 
 export const UPLOAD_PAGE_CSP =
   "default-src 'none'; img-src 'self' blob:; media-src 'self' blob:; " +
-  "style-src 'self'; script-src 'self'; connect-src 'self'; form-action 'none'; " +
+  "style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'none'; " +
   "base-uri 'none'; frame-ancestors 'none'";

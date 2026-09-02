@@ -12,9 +12,15 @@ sheet of everything
 you have uploaded, newest first, with a copy-link button on each tile. It lists only
 your own files, never anyone else's.
 
-The pages share one stylesheet and the mascot in `public/brand/`. Its palette is where
-the interface colours come from, so replacing the sprite means revisiting the custom
-properties at the top of `public/upload.css`.
+The pages share one stylesheet and the assets in `public/brand/`. The mascot's palette
+is where the interface colours come from, so replacing the sprite means revisiting the
+custom properties at the top of `public/upload.css`.
+
+Headings, labels and numbers are set in [Silkscreen](https://github.com/googlefonts/silkscreen),
+a bitmap face bundled under the OFL (see `public/brand/SILKSCREEN-OFL.txt`). It is
+served from this origin because the pages run under a CSP with `font-src 'self'`, and
+it stays crisp only at 8, 12, 16 and 20px, so those are the only sizes used for it.
+Filenames and body copy stay in the system sans, which is legible at any length.
 
 Runs as a single Railway service with a Redis plugin and a mounted volume.
 

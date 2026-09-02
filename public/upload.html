@@ -11,7 +11,7 @@
       data-expires-at="{{EXPIRES_AT}}"
       data-max-bytes="{{MAX_FILE_BYTES}}">
 <header class="bar">
-  <img class="mark" src="/assets/mascot-small.png" alt="" width="40" height="40">
+  <img class="mark" src="/assets/mascot-small.png" alt="" width="48" height="48">
   <div class="bar-title">
     <span class="bar-name">Upload</span>
     <span class="bar-sub">Images and videos</span>
@@ -20,7 +20,7 @@
 </header>
 
 <main class="centered">
-<div class="card">
+<div class="card panel"><div class="card-in">
   <label id="drop" class="drop" for="picker" tabindex="0">
     <span class="drop-title">Drop a file here</span>
     <span class="muted">or click to choose</span>
@@ -39,7 +39,7 @@
   <p id="status" class="status" role="status"></p>
 
   <button id="send" class="button" type="button" disabled>Upload</button>
-</div>
+</div></div>
 </main>
 <script src="/assets/upload.js"></script>
 </body>

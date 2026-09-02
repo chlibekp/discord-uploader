@@ -21,6 +21,15 @@ export function assetRoutes(): Hono {
   );
 
   for (const [route, body] of [
+    ["/assets/silkscreen-400.woff2", assets.fontRegular],
+    ["/assets/silkscreen-700.woff2", assets.fontBold],
+  ] as const) {
+    app.get(route, (c) =>
+      c.body(new Uint8Array(body), 200, { "Content-Type": "font/woff2", "Cache-Control": IMMUTABLE }),
+    );
+  }
+
+  for (const [route, body] of [
     ["/assets/mascot.png", assets.mascot],
     ["/assets/mascot-small.png", assets.mascotSmall],
     ["/favicon.ico", assets.mascotSmall],
