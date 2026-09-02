@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { USER_KEY, listUserFiles } from "../src/storage/store.js";
+import { existsSync } from "node:fs";
+import { USER_KEY, fileDir, listUserFiles } from "../src/storage/store.js";
 import {
   fixtures,
   interactionRequest,
@@ -225,6 +226,78 @@ describe("gallery page", () => {
     // The full name stays reachable as a tooltip even though the tile clips it.
     expect(html).toContain('title="a-long-upload-name-that-would-otherwise-wrap.mp4"');
     expect(html).toContain('<span class="badge">VIDEO</span>');
+  });
+});
+
+describe("deleting a file", () => {
+  /** The page carries a token because its session is spent on render. */
+  async function galleryWithToken(userId: string): Promise<{ token: string; html: string }> {
+    const html = await (await openGallery(userId)).text();
+    const token = /data-token="([\w-]+)"/.exec(html)?.[1] ?? "";
+    return { token, html };
+  }
+
+  function del(id: string, token: string | null): Request {
+    return new Request(`https://uploader.test/api/files/${id}`, {
+      method: "DELETE",
+      ...(token === null ? {} : { headers: { "X-Action-Token": token } }),
+    });
+  }
+
+  it("removes the owner's file from disk and from Redis", async () => {
+    const url = await uploadAs("user-42", "gone.png");
+    const id = new URL(url).pathname.split("/")[2] as string;
+    const { token } = await galleryWithToken("user-42");
+
+    const res = await h.app.fetch(del(id, token));
+    expect(res.status).toBe(204);
+
+    expect(existsSync(fileDir(h.deps.config, id))).toBe(false);
+    expect(await h.deps.redis.hgetall(`file:${id}`)).toEqual({});
+    expect(await h.deps.redis.zrange(USER_KEY("user-42"), 0, -1)).toEqual([]);
+    expect(await h.deps.redis.zrange("files:lru", 0, -1)).toEqual([]);
+    expect(await h.deps.redis.get("total:bytes")).toBe("0");
+
+    expect((await h.app.fetch(new Request(url))).status).toBe(404);
+  });
+
+  it("refuses to delete a file belonging to someone else", async () => {
+    const url = await uploadAs("victim", "theirs.png");
+    const id = new URL(url).pathname.split("/")[2] as string;
+    const { token } = await galleryWithToken("attacker");
+
+    // 404 rather than 403, so the endpoint cannot confirm the id exists.
+    const res = await h.app.fetch(del(id, token));
+    expect(res.status).toBe(404);
+    expect(existsSync(fileDir(h.deps.config, id))).toBe(true);
+  });
+
+  it("rejects a missing, unknown or expired token", async () => {
+    const url = await uploadAs("user-42");
+    const id = new URL(url).pathname.split("/")[2] as string;
+
+    expect((await h.app.fetch(del(id, null))).status).toBe(401);
+    expect((await h.app.fetch(del(id, "not-a-real-token"))).status).toBe(401);
+
+    const { token } = await galleryWithToken("user-42");
+    await h.deps.redis.del(`act:${token}`);
+    expect((await h.app.fetch(del(id, token))).status).toBe(401);
+
+    expect(existsSync(fileDir(h.deps.config, id))).toBe(true);
+  });
+
+  it("404s for an id that does not exist", async () => {
+    const { token } = await galleryWithToken("user-42");
+    expect((await h.app.fetch(del("no-such-file", token))).status).toBe(404);
+  });
+
+  it("gives the page a token and a delete control per tile", async () => {
+    await uploadAs("user-42", "one.png");
+    const { html, token } = await galleryWithToken("user-42");
+
+    expect(token).toHaveLength(22);
+    expect(html).toContain("data-delete=");
+    expect(html).not.toContain("{{TOKEN}}");
   });
 });
 

@@ -9,8 +9,15 @@ images as an embed, videos as an inline player.
 
 `/gallery` replies with another private link, this one showing a full-bleed contact
 sheet of everything
-you have uploaded, newest first, with a copy-link button on each tile. It lists only
-your own files, never anyone else's.
+you have uploaded, newest first. Each tile can be opened, have its link copied, or be
+deleted. It lists only your own files, never anyone else's.
+
+Deleting needs a credential that outlives the page load, since the gallery session is
+spent rendering. The page is therefore issued an action token, good for 15 minutes,
+that names one user and nothing more: every delete is still checked against the owner
+of the file being removed, and a file belonging to someone else answers 404 rather than
+403 so the endpoint cannot be used to probe which ids exist. Deletion is immediate and
+permanent, so the button arms on the first click and only deletes on the second.
 
 The pages share one stylesheet and the assets in `public/brand/`. The mascot's palette
 is where the interface colours come from, so replacing the sprite means revisiting the
@@ -134,6 +141,7 @@ then served as script from this origin.
 | `POST /interactions` | Discord webhook |
 | `GET /u/:sid` | Upload page |
 | `GET /g/:gid` | Gallery page, scoped to the invoker |
+| `DELETE /api/files/:id` | Deletes one of your own uploads |
 | `GET /assets/*` | Stylesheet, scripts and the mascot sprite |
 | `POST /u/:sid/file` | Streaming upload |
 | `GET /f/:id/:name` | Serves the file, with Range support |

@@ -349,8 +349,8 @@ a { color: var(--cyan); }
   color: var(--dim);
 }
 
-.tile-actions { display: flex; gap: var(--step); }
-.tile-actions > * { flex: 1; }
+.tile-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.tile-actions > * { flex: 1 1 auto; min-width: 0; }
 
 .tile a.button.small {
   text-decoration: none;
@@ -358,6 +358,13 @@ a { color: var(--cyan); }
 }
 
 .copied { background: var(--gold) !important; color: var(--void) !important; }
+
+.button.small.danger:hover { background: #5a2230; color: #ffb3bc; }
+/* Armed: one more click deletes, so it stops looking like the others. */
+.button.small.armed { background: var(--danger); color: #fff; }
+.button.small.armed:hover { background: #ff5d6c; }
+
+.sheet-note.error { color: var(--danger); }
 
 .copy-fallback {
   grid-column: 1 / -1;

@@ -101,3 +101,24 @@ export async function claimSession(redis: Redis, sid: string): Promise<ClaimResu
 export async function deleteSession(redis: Redis, sid: string): Promise<void> {
   await redis.del(key(sid));
 }
+
+/**
+ * The gallery session is spent rendering the page, so anything the page does
+ * afterwards needs its own credential. An action token names one user and
+ * nothing else; every request it authorises is still checked against the owner
+ * of the file being touched.
+ */
+export const ACTION_TOKEN_TTL_SECONDS = 900;
+
+const actionKey = (token: string) => `act:${token}`;
+
+export async function createActionToken(redis: Redis, userId: string): Promise<string> {
+  const token = newId();
+  await redis.set(actionKey(token), userId, "EX", ACTION_TOKEN_TTL_SECONDS);
+  return token;
+}
+
+export async function readActionToken(redis: Redis, token: string): Promise<string | null> {
+  if (!token) return null;
+  return redis.get(actionKey(token));
+}
