@@ -23,7 +23,20 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       timestamp: c.req.header("X-Signature-Timestamp"),
       rawBody,
     });
-    if (!valid) return c.body(null, 401);
+    if (!valid) {
+      // Discord validates an endpoint by sending both a correctly signed PING
+      // and a deliberately corrupted one, so a 401 here is expected traffic.
+      // The key fingerprint is logged because a mismatch against the portal is
+      // the usual reason a genuine PING gets rejected.
+      console.warn(
+        "Rejected interaction signature " +
+          `(sig=${c.req.header("X-Signature-Ed25519") ? "present" : "missing"}, ` +
+          `ts=${c.req.header("X-Signature-Timestamp") ? "present" : "missing"}, ` +
+          `bytes=${rawBody.length}, ` +
+          `publicKey=${deps.config.discordPublicKey.slice(0, 8)}…${deps.config.discordPublicKey.slice(-4)})`,
+      );
+      return c.body(null, 401);
+    }
 
     let body: any;
     try {

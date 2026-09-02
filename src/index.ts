@@ -17,6 +17,12 @@ async function main() {
   console.log(
     `Config OK: port=${config.port} dataDir=${config.dataDir} publicUrl=${config.publicUrl}`,
   );
+  // The Ed25519 public key is not a secret, and a mismatch against the Developer
+  // Portal is the usual cause of a failed interactions endpoint validation.
+  console.log(
+    `Discord app ${config.discordAppId}, public key ${config.discordPublicKey}`,
+  );
+  console.log(`Interactions endpoint should be set to ${config.publicUrl}/interactions`);
 
   console.log(`Connecting to Redis at ${redacted(config.redisUrl)}`);
   const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 3 });
