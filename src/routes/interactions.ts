@@ -48,8 +48,17 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     if (body.type === PING) return c.json({ type: PONG });
 
     const command: string | undefined = body.data?.name;
-    if (body.type !== APPLICATION_COMMAND || (command !== "upload" && command !== "gallery")) {
+    if (body.type !== APPLICATION_COMMAND || (command !== "upload" && command !== "gallery" && command !== "help")) {
       return c.json({ error: "Unsupported interaction" }, 400);
+    }
+
+    if (command === "help") {
+      return c.json({
+        type: CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          content: "Available commands:\n/upload - Upload an image or video\n/gallery - Browse everything you have uploaded\n/help - Show this help message",
+        },
+      });
     }
 
     const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
