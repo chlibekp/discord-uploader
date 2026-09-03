@@ -71,6 +71,9 @@ h1, h2,
 
 * { box-sizing: border-box; }
 
+/* Author display rules beat the UA sheet, so [hidden] needs its own rule. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
