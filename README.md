@@ -114,6 +114,8 @@ would have a different disk and 404 on files the first one wrote. `railway.json`
 | `MAX_FILE_BYTES` | no | `2147483648` | 2 GB per file |
 | `MAX_TOTAL_BYTES` | no | `4831838208` | 4.5 GB, ~10% under a 5 GB volume |
 | `MAX_USER_BYTES` | no | `2147483648` | 2 GB cap on one uploader's live files |
+| `RATE_LIMIT_SESSIONS_PER_HOUR` | no | `20` | Max `/upload` + `/gallery` links one user may mint per rolling hour. `0` disables |
+| `RATE_LIMIT_UPLOADS_PER_HOUR` | no | `30` | Max files one user may upload per rolling hour. `0` disables |
 | `PORT` | no | `3000` | Set by Railway |
 
 ## Storage and eviction
@@ -138,6 +140,17 @@ boot, on the next upload, and when a `/gallery` link is opened.
 
 `/stats` reports the caller's file count, bytes used against the quota, oldest and
 newest upload, and the next scheduled auto-delete.
+
+### Abuse guards
+
+Two fixed-window counters, keyed by Discord user id and reset on the hour, live in
+Redis alongside everything else. `RATE_LIMIT_SESSIONS_PER_HOUR` caps how many
+`/upload` and `/gallery` links one person can mint; `RATE_LIMIT_UPLOADS_PER_HOUR` caps
+how many files they can actually upload. Discord commands over the session limit get
+an ephemeral reply naming the reset time instead of a link; `POST /u/:sid/file` over
+the upload limit answers `429` with the same plain-language reset time and never
+claims the session, so the link stays usable once the window turns over. Either limit
+is `0` to disable it.
 
 Set `MAX_TOTAL_BYTES` below your actual volume size. Going over the cap with nothing
 evictable is logged and otherwise ignored; the disk filling up is not.
