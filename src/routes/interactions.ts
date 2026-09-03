@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { AppDeps } from "../app.js";
 import { verifyInteractionSignature } from "../discord/verify.js";
 import { createSession } from "../storage/sessions.js";
+import { collectInfra, formatInfra } from "../infra.js";
 
 const PING = 1;
 const APPLICATION_COMMAND = 2;
@@ -48,7 +49,10 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     if (body.type === PING) return c.json({ type: PONG });
 
     const command: string | undefined = body.data?.name;
-    if (body.type !== APPLICATION_COMMAND || (command !== "upload" && command !== "gallery" && command !== "help")) {
+    if (
+      body.type !== APPLICATION_COMMAND ||
+      (command !== "upload" && command !== "gallery" && command !== "help" && command !== "info")
+    ) {
       return c.json({ error: "Unsupported interaction" }, 400);
     }
 
@@ -56,8 +60,17 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       return c.json({
         type: CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          content: "Available commands:\n/upload - Upload an image or video\n/gallery - Browse everything you have uploaded\n/help - Show this help message",
+          content:
+            "Available commands:\n/upload - Upload an image or video\n/gallery - Browse everything you have uploaded\n/info - Show infrastructure and resource usage\n/help - Show this help message",
         },
+      });
+    }
+
+    if (command === "info") {
+      const report = await collectInfra(deps.config.dataDir);
+      return c.json({
+        type: CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { flags: EPHEMERAL, content: formatInfra(report) },
       });
     }
 

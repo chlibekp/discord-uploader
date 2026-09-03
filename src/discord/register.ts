@@ -29,7 +29,15 @@ export const HELP_COMMAND = {
   contexts: CONTEXTS,
 } as const;
 
-export const COMMANDS = [UPLOAD_COMMAND, GALLERY_COMMAND, HELP_COMMAND];
+export const INFO_COMMAND = {
+  name: "info",
+  description: "Show infrastructure and resource usage",
+  type: 1,
+  integration_types: INTEGRATION_TYPES,
+  contexts: CONTEXTS,
+} as const;
+
+export const COMMANDS = [UPLOAD_COMMAND, GALLERY_COMMAND, HELP_COMMAND, INFO_COMMAND];
 
 /**
  * Overwrite the application's global commands. PUT is a full replace, so this is

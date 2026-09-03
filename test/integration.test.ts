@@ -86,6 +86,19 @@ describe("POST /interactions", () => {
     expect(ttl).toBeLessThanOrEqual(SESSION_TTL_SECONDS);
   });
 
+  it("answers /info with an ephemeral infrastructure report", async () => {
+    const payload = uploadCommand({ data: { name: "info", type: 1 } });
+    const res = await h.app.fetch(interactionRequest(payload));
+    const body = await res.json();
+
+    expect(body.type).toBe(4);
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("**Region:**");
+    expect(body.data.content).toContain("**CPU:**");
+    expect(body.data.content).toContain("**Memory:**");
+    expect(body.data.content).toContain("**Disk:**");
+  });
+
   it("reads the user id from a DM payload, where there is no member object", async () => {
     const payload = uploadCommand({ member: undefined, user: { id: "dm-user" }, guild_id: undefined });
     const res = await h.app.fetch(interactionRequest(payload));
