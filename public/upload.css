@@ -267,6 +267,68 @@ a { color: var(--cyan); }
 .button.small:hover { background: #2f3462; }
 .button.small:active { transform: translate(3px, 3px); filter: none; }
 
+/* ---------- Gallery: toolbar ---------- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--step);
+  padding: calc(var(--step) * 2) calc(var(--step) * 2) 0;
+}
+
+.toolbar-label {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.toolbar-input,
+.toolbar-select {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: #0a0b14;
+  border: 2px solid var(--line);
+  padding: 8px 10px;
+  min-width: 0;
+}
+.toolbar-input { flex: 1 1 200px; }
+.toolbar-input:focus-visible,
+.toolbar-select:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.toolbar-count {
+  font-family: "Silkscreen", ui-monospace, monospace;
+  -webkit-font-smoothing: none;
+  font-size: 12px;
+  color: var(--cyan);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* Screen-reader-only: visually hidden but still announced, used for the
+   armed-delete and delete-outcome announcements. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sheet-empty {
+  padding: calc(var(--step) * 6) calc(var(--step) * 2);
+  text-align: center;
+  color: var(--dim);
+  font-size: 13px;
+}
+
 /* ---------- Gallery: full-bleed contact sheet ---------- */
 
 .sheet {
@@ -283,6 +345,15 @@ a { color: var(--cyan); }
   transition: background 0.1s;
 }
 .tile:hover { background: var(--cyan); }
+
+/*
+ * The panel's notch clip-path crops a default outline, so the focus ring is
+ * drawn outside it with extra offset instead of relying on the global rule.
+ */
+.tile:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+}
 
 .tile > .tile-in {
   display: grid;
