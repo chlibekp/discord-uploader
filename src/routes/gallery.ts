@@ -68,8 +68,25 @@ export function galleryRoutes(deps: AppDeps): Hono {
 }
 
 function sheet(config: Config, files: FileRecord[]): string {
-  return `<main class="sheet">${files.map((file) => tile(config, file)).join("")}</main>
-<p class="sheet-note">Oldest files are cleared as storage fills. Keep your own copy of anything that matters.</p>`;
+  return `<main class="gallery-main">
+<div class="toolbar">
+<label class="toolbar-label" for="filter">Filter</label>
+<input class="toolbar-input" type="search" id="filter" placeholder="Filter by filename" autocomplete="off">
+<label class="toolbar-label" for="sort">Sort</label>
+<select class="toolbar-select" id="sort">
+<option value="newest">Newest</option>
+<option value="oldest">Oldest</option>
+<option value="largest">Largest</option>
+<option value="smallest">Smallest</option>
+<option value="soonest">Soonest to expire</option>
+</select>
+<span class="toolbar-count" id="filterCount"></span>
+</div>
+<div class="sheet" id="sheet" role="grid" aria-label="Your uploads">${files.map((file) => tile(config, file)).join("")}</div>
+<p class="sheet-empty" id="sheetEmpty" hidden>No files match that filter.</p>
+</main>
+<p class="sheet-note">Oldest files are cleared as storage fills. Keep your own copy of anything that matters.</p>
+<div class="sr-only" id="liveRegion" role="status" aria-live="assertive" aria-atomic="true"></div>`;
 }
 
 function tile(config: Config, file: FileRecord): string {
@@ -85,12 +102,15 @@ function tile(config: Config, file: FileRecord): string {
 <span class="badge">VIDEO</span>`
       : `<img loading="lazy" decoding="async" src="${escapeHtml(direct)}" alt="${name}">`;
 
-  return `<figure class="tile panel">
+  return `<figure class="tile panel" tabindex="0" role="gridcell" data-tile
+data-id="${file.id}" data-name="${name}" data-size="${file.size}"
+data-created="${file.createdAt}" data-expires="${file.expiresAt}"
+data-href="${escapeHtml(share)}" aria-label="${name}">
 <div class="tile-in">
-<a class="shot" href="${escapeHtml(share)}" target="_blank" rel="noopener">${preview}</a>
+<a class="shot" href="${escapeHtml(share)}" target="_blank" rel="noopener" tabindex="-1">${preview}</a>
 <div class="tile-body">
 <figcaption class="tile-name" title="${name}">${name}</figcaption>
-<div class="tile-meta"><span>${formatBytes(file.size)}</span><span>${formatDate(file.createdAt)}</span><span>${expiryLabel(file.expiresAt)}</span></div>
+<div class="tile-meta"><span>${formatBytes(file.size)}</span><span>${formatDate(file.createdAt)}</span><span class="tile-expiry" data-expiry>${expiryLabel(file.expiresAt)}</span></div>
 <div class="tile-actions">
 <a class="button small" href="${escapeHtml(share)}" target="_blank" rel="noopener">Open</a>
 ${
