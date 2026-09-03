@@ -203,21 +203,27 @@ async function handleComponent(deps: AppDeps, body: any) {
     return ephemeral("Only the person who uploaded this can delete it.");
   }
 
-  if (record) {
+  // A component interaction must be acknowledged within 3 seconds. Deleting the
+  // file and calling Discord back to remove the message both take longer than
+  // that budget allows, so they run after the ack rather than before it.
+  void finishButtonDelete(deps, body.token, id, record !== null).catch((err) => {
+    console.error(`Delete-button cleanup failed for ${id}:`, err);
+  });
+
+  return { type: DEFERRED_UPDATE_MESSAGE };
+}
+
+async function finishButtonDelete(
+  deps: AppDeps,
+  interactionToken: string,
+  id: string,
+  hadRecord: boolean,
+): Promise<void> {
+  if (hadRecord) {
     await deleteRecord(deps.redis, deps.config, id);
     console.log(`Deleted ${id} via the message button`);
   }
-
-  const removed = await deleteInteractionMessage(deps.config, body.token, deps.fetch);
-  if (!removed) {
-    return ephemeral(
-      record
-        ? "Deleted the file, but could not remove the message. You can delete it manually."
-        : "This upload was already gone, but the message could not be removed.",
-    );
-  }
-  // The message is gone; acknowledge without trying to edit it.
-  return { type: DEFERRED_UPDATE_MESSAGE };
+  await deleteInteractionMessage(deps.config, interactionToken, deps.fetch);
 }
 
 function formatBytes(bytes: number): string {

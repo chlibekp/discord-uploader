@@ -395,6 +395,9 @@ describe("delete button on a posted upload", () => {
     const body = await (await h.app.fetch(buttonPress(id, "user-42"))).json();
     expect(body.type).toBe(6);
 
+    // The file removal and message delete run after the ack.
+    await new Promise((r) => setTimeout(r, 30));
+
     expect(h.calls).toHaveLength(1);
     expect(h.calls[0].url).toBe(
       "https://discord.com/api/v10/webhooks/1234567890/interaction-token-abc/messages/@original",
@@ -420,6 +423,7 @@ describe("delete button on a posted upload", () => {
   it("still removes the message when the file is already gone", async () => {
     const body = await (await h.app.fetch(buttonPress("missingid", "user-42"))).json();
     expect(body.type).toBe(6);
+    await new Promise((r) => setTimeout(r, 30));
     expect(h.calls.at(-1)?.url).toContain("/messages/@original");
   });
 });
