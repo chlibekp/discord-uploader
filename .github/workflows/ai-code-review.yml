@@ -11,14 +11,14 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
-  models: read
+
+env:
+  # opencode model slug (provider/model). Groq free tier.
+  REVIEW_MODEL: groq/llama-3.3-70b-versatile
 
 jobs:
   review:
     runs-on: ubuntu-latest
-    env:
-      # GitHub Models model slug. Override here to swap models.
-      REVIEW_MODEL: openai/gpt-4o-mini
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,34 +44,13 @@ jobs:
             echo "empty=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Configure opencode
-        if: steps.diff.outputs.empty == 'false'
-        run: |
-          cat > opencode.json <<'EOF'
-          {
-            "$schema": "https://opencode.ai/config.json",
-            "provider": {
-              "github-models": {
-                "npm": "@ai-sdk/openai-compatible",
-                "name": "GitHub Models",
-                "options": {
-                  "baseURL": "https://models.github.ai/inference"
-                },
-                "models": {
-                  "openai/gpt-4o-mini": { "name": "GPT-4o mini" }
-                }
-              }
-            }
-          }
-          EOF
-
       - name: Run review
         if: steps.diff.outputs.empty == 'false'
         env:
-          GITHUB_MODELS_API_KEY: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_COMPATIBLE_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: |
-          PROMPT=$(cat <<'EOF'
+          {
+            cat <<'EOF'
           You are a code reviewer. Review the unified diff below for this pull request.
 
           Focus on:
@@ -87,33 +66,26 @@ jobs:
 
           Diff:
           EOF
-          )
-          {
-            echo "$PROMPT"
             echo '```diff'
             cat diff.patch
             echo '```'
           } > review-input.txt
 
-          opencode run \
-            --model "github-models/${REVIEW_MODEL}" \
-            < review-input.txt \
-            | tee review.md
+          set -o pipefail
+          opencode run --model "$REVIEW_MODEL" < review-input.txt | tee review.md
 
       - name: Post review comment
-        if: steps.diff.outputs.empty == 'false'
+        if: steps.diff.outputs.empty == 'false' && !cancelled()
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const marker = '<!-- ai-code-review -->';
+            let review = '';
+            try { review = fs.readFileSync('review.md', 'utf8').trim(); } catch {}
             let body = marker + '\n## AI Code Review\n\n';
-            try {
-              body += fs.readFileSync('review.md', 'utf8').trim() || '_No output._';
-            } catch {
-              body += '_Review step produced no output._';
-            }
-            body += `\n\n<sub>Model: \`${process.env.REVIEW_MODEL}\` via GitHub Models · opencode</sub>`;
+            body += review || '_Review step produced no output (model error or rate limit). Check the workflow logs._';
+            body += `\n\n<sub>Model: \`${process.env.REVIEW_MODEL}\` · opencode</sub>`;
 
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
@@ -129,8 +101,6 @@ jobs:
 
   triage:
     runs-on: ubuntu-latest
-    env:
-      REVIEW_MODEL: openai/gpt-4o-mini
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -161,31 +131,10 @@ jobs:
           fi
           echo "size=$SIZE" >> "$GITHUB_OUTPUT"
 
-      - name: Configure opencode
-        run: |
-          cat > opencode.json <<'EOF'
-          {
-            "$schema": "https://opencode.ai/config.json",
-            "provider": {
-              "github-models": {
-                "npm": "@ai-sdk/openai-compatible",
-                "name": "GitHub Models",
-                "options": {
-                  "baseURL": "https://models.github.ai/inference"
-                },
-                "models": {
-                  "openai/gpt-4o-mini": { "name": "GPT-4o mini" }
-                }
-              }
-            }
-          }
-          EOF
-
       - name: Classify type
         id: classify
         env:
-          GITHUB_MODELS_API_KEY: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_COMPATIBLE_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           {
@@ -200,7 +149,7 @@ jobs:
             echo '```'
           } > classify-input.txt
 
-          RAW=$(opencode run --model "github-models/${REVIEW_MODEL}" < classify-input.txt || true)
+          RAW=$(opencode run --model "$REVIEW_MODEL" < classify-input.txt || true)
           TYPE=$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]' \
             | grep -oE 'feature|fix|docs|refactor|test|chore|perf' | head -n1 || true)
 
