@@ -110,6 +110,7 @@ function upload() {
   uploading = true;
   sendButton.disabled = true;
   progressWrap.hidden = false;
+  drop.hidden = true;
   setStatus("Uploading…");
 
   const form = new FormData();
@@ -149,16 +150,17 @@ function upload() {
         link.textContent = payload.url || "";
         statusEl.appendChild(link);
       }
-      drop.hidden = true;
       return;
     }
 
+    drop.hidden = false;
     sendButton.disabled = false;
     setStatus(payload.error || `Upload failed (${xhr.status}).`, "error");
   });
 
   xhr.addEventListener("error", () => {
     uploading = false;
+    drop.hidden = false;
     sendButton.disabled = false;
     setStatus("Network error during upload.", "error");
   });
