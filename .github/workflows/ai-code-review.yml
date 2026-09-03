@@ -1,0 +1,260 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ai-code-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  models: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      # GitHub Models model slug. Override here to swap models.
+      REVIEW_MODEL: openai/gpt-4o-mini
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install opencode
+        run: npm i -g opencode-ai
+
+      - name: Build diff
+        id: diff
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          git diff "origin/${{ github.base_ref }}...HEAD" > diff.patch
+          if [ ! -s diff.patch ]; then
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "empty=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure opencode
+        if: steps.diff.outputs.empty == 'false'
+        run: |
+          cat > opencode.json <<'EOF'
+          {
+            "$schema": "https://opencode.ai/config.json",
+            "provider": {
+              "github-models": {
+                "npm": "@ai-sdk/openai-compatible",
+                "name": "GitHub Models",
+                "options": {
+                  "baseURL": "https://models.github.ai/inference"
+                },
+                "models": {
+                  "openai/gpt-4o-mini": { "name": "GPT-4o mini" }
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Run review
+        if: steps.diff.outputs.empty == 'false'
+        env:
+          GITHUB_MODELS_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_COMPATIBLE_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PROMPT=$(cat <<'EOF'
+          You are a code reviewer. Review the unified diff below for this pull request.
+
+          Focus on:
+          - Bugs, logic errors, race conditions
+          - Security issues (injection, auth, path traversal, secret leakage)
+          - Correctness and error handling
+
+          Rules:
+          - Skip pure style/formatting nits.
+          - Cite locations as `path:line`.
+          - Be concise. Use short bullet points grouped by severity.
+          - If you find no substantive issues, reply exactly: "No issues found."
+
+          Diff:
+          EOF
+          )
+          {
+            echo "$PROMPT"
+            echo '```diff'
+            cat diff.patch
+            echo '```'
+          } > review-input.txt
+
+          opencode run \
+            --model "github-models/${REVIEW_MODEL}" \
+            < review-input.txt \
+            | tee review.md
+
+      - name: Post review comment
+        if: steps.diff.outputs.empty == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- ai-code-review -->';
+            let body = marker + '\n## AI Code Review\n\n';
+            try {
+              body += fs.readFileSync('review.md', 'utf8').trim() || '_No output._';
+            } catch {
+              body += '_Review step produced no output._';
+            }
+            body += `\n\n<sub>Model: \`${process.env.REVIEW_MODEL}\` via GitHub Models · opencode</sub>`;
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  triage:
+    runs-on: ubuntu-latest
+    env:
+      REVIEW_MODEL: openai/gpt-4o-mini
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install opencode
+        run: npm i -g opencode-ai
+
+      - name: Build diff and size
+        id: diff
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          git diff "origin/${{ github.base_ref }}...HEAD" > diff.patch
+          CHANGED=$(git diff --numstat "origin/${{ github.base_ref }}...HEAD" \
+            | awk '{ a += ($1 == "-" ? 0 : $1); d += ($2 == "-" ? 0 : $2) } END { print a + d + 0 }')
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+          if   [ "$CHANGED" -lt 10 ];  then SIZE=XS
+          elif [ "$CHANGED" -lt 50 ];  then SIZE=S
+          elif [ "$CHANGED" -lt 200 ]; then SIZE=M
+          elif [ "$CHANGED" -lt 500 ]; then SIZE=L
+          else SIZE=XL
+          fi
+          echo "size=$SIZE" >> "$GITHUB_OUTPUT"
+
+      - name: Configure opencode
+        run: |
+          cat > opencode.json <<'EOF'
+          {
+            "$schema": "https://opencode.ai/config.json",
+            "provider": {
+              "github-models": {
+                "npm": "@ai-sdk/openai-compatible",
+                "name": "GitHub Models",
+                "options": {
+                  "baseURL": "https://models.github.ai/inference"
+                },
+                "models": {
+                  "openai/gpt-4o-mini": { "name": "GPT-4o mini" }
+                }
+              }
+            }
+          }
+          EOF
+
+      - name: Classify type
+        id: classify
+        env:
+          GITHUB_MODELS_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_COMPATIBLE_API_KEY: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          {
+            echo "Classify this pull request into exactly one category."
+            echo "Allowed categories: feature fix docs refactor test chore perf"
+            echo "Reply with ONLY the single category word, lowercase, nothing else."
+            echo ""
+            echo "PR title: $PR_TITLE"
+            echo ""
+            echo '```diff'
+            head -c 60000 diff.patch
+            echo '```'
+          } > classify-input.txt
+
+          RAW=$(opencode run --model "github-models/${REVIEW_MODEL}" < classify-input.txt || true)
+          TYPE=$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]' \
+            | grep -oE 'feature|fix|docs|refactor|test|chore|perf' | head -n1 || true)
+
+          if [ -z "$TYPE" ]; then
+            PREFIX=$(printf '%s' "$PR_TITLE" | tr '[:upper:]' '[:lower:]' \
+              | grep -oE '^(feat|feature|fix|docs|refactor|test|chore|perf)' | head -n1 || true)
+            case "$PREFIX" in
+              feat|feature) TYPE=feature ;;
+              fix)          TYPE=fix ;;
+              docs)         TYPE=docs ;;
+              refactor)     TYPE=refactor ;;
+              test)         TYPE=test ;;
+              perf)         TYPE=perf ;;
+              *)            TYPE=chore ;;
+            esac
+          fi
+          echo "type=$TYPE" >> "$GITHUB_OUTPUT"
+
+      - name: Apply labels
+        uses: actions/github-script@v7
+        env:
+          PR_SIZE: ${{ steps.diff.outputs.size }}
+          PR_TYPE: ${{ steps.classify.outputs.type }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const sizeLabel = `size/${process.env.PR_SIZE}`;
+            const typeLabel = `type/${process.env.PR_TYPE}`;
+
+            const defs = {
+              'size/XS': '3fb950', 'size/S': '2da44e', 'size/M': 'd4a72c',
+              'size/L': 'e16f24', 'size/XL': 'cf222e',
+              'type/feature': '1f6feb', 'type/fix': 'cf222e', 'type/docs': '8250df',
+              'type/refactor': '6e7781', 'type/test': '0969da', 'type/chore': '57606a',
+              'type/perf': 'bf8700',
+            };
+            for (const [name, color] of Object.entries(defs)) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch {
+                await github.rest.issues.createLabel({ owner, repo, name, color });
+              }
+            }
+
+            const { data: current } = await github.rest.issues.listLabelsOnIssue({
+              owner, repo, issue_number,
+            });
+            for (const l of current) {
+              if ((l.name.startsWith('size/') && l.name !== sizeLabel) ||
+                  (l.name.startsWith('type/') && l.name !== typeLabel)) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number, name: l.name });
+              }
+            }
+            await github.rest.issues.addLabels({
+              owner, repo, issue_number, labels: [sizeLabel, typeLabel],
+            });
