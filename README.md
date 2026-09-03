@@ -6,8 +6,8 @@ any server, DM, or group DM you are in — the bot does not have to be a member 
 Running `/upload` replies privately with a link to a web upload page. You drop in an
 image or video, and the bot posts it back into the channel you ran the command in:
 images as an embed, videos as an inline player. The posted message carries a **Delete**
-button; only the person who uploaded the file can use it, and pressing it edits the
-message in place.
+button; only the person who uploaded the file can use it, and pressing it removes the
+file and deletes the whole message.
 
 `/gallery` replies with another private link, this one showing a full-bleed contact
 sheet of everything

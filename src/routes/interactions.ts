@@ -4,6 +4,7 @@ import { verifyInteractionSignature } from "../discord/verify.js";
 import { createSession } from "../storage/sessions.js";
 import { collectInfra, formatInfra } from "../infra.js";
 import { ttlValueToMs, describeTtl } from "../ttl.js";
+import { deleteInteractionMessage } from "../discord/followup.js";
 import { deleteRecord, expireDue, getRecord, listUserFiles, userBytes } from "../storage/store.js";
 
 const PING = 1;
@@ -12,7 +13,7 @@ const MESSAGE_COMPONENT = 3;
 
 const PONG = 1;
 const CHANNEL_MESSAGE_WITH_SOURCE = 4;
-const UPDATE_MESSAGE = 7;
+const DEFERRED_UPDATE_MESSAGE = 6;
 const EPHEMERAL = 64;
 
 export function interactionsRoutes(deps: AppDeps): Hono {
@@ -187,7 +188,7 @@ function ephemeral(content: string) {
 /**
  * The Delete button on a posted upload. Only the original uploader may spend it;
  * anyone else gets a private notice and the message is left untouched. On
- * success the channel message is edited in place to drop the image and button.
+ * success the file is removed and the whole channel message is deleted.
  */
 async function handleComponent(deps: AppDeps, body: any) {
   const [action, id] = String(body.data?.custom_id ?? "").split(":");
@@ -198,27 +199,25 @@ async function handleComponent(deps: AppDeps, body: any) {
   const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
   const record = await getRecord(deps.redis, id);
 
-  if (!record) {
-    return {
-      type: UPDATE_MESSAGE,
-      data: { content: "🗑️ This upload has been deleted.", embeds: [], components: [] },
-    };
-  }
-  if (!userId || record.userId !== userId) {
+  if (record && (!userId || record.userId !== userId)) {
     return ephemeral("Only the person who uploaded this can delete it.");
   }
 
-  await deleteRecord(deps.redis, deps.config, id);
-  console.log(`Deleted ${id} via the message button`);
-  return {
-    type: UPDATE_MESSAGE,
-    data: {
-      content: "🗑️ This upload has been deleted.",
-      embeds: [],
-      components: [],
-      allowed_mentions: { parse: [] },
-    },
-  };
+  if (record) {
+    await deleteRecord(deps.redis, deps.config, id);
+    console.log(`Deleted ${id} via the message button`);
+  }
+
+  const removed = await deleteInteractionMessage(deps.config, body.token, deps.fetch);
+  if (!removed) {
+    return ephemeral(
+      record
+        ? "Deleted the file, but could not remove the message. You can delete it manually."
+        : "This upload was already gone, but the message could not be removed.",
+    );
+  }
+  // The message is gone; acknowledge without trying to edit it.
+  return { type: DEFERRED_UPDATE_MESSAGE };
 }
 
 function formatBytes(bytes: number): string {

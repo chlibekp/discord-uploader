@@ -388,34 +388,39 @@ describe("delete button on a posted upload", () => {
     });
   }
 
-  it("lets the uploader delete their own upload and edits the message", async () => {
+  it("lets the uploader delete their own upload and removes the message", async () => {
     const id = await uploadAndGetId("user-42");
+    h.calls.length = 0;
 
     const body = await (await h.app.fetch(buttonPress(id, "user-42"))).json();
-    expect(body.type).toBe(7);
-    expect(body.data.embeds).toEqual([]);
-    expect(body.data.components).toEqual([]);
-    expect(body.data.content).toContain("deleted");
+    expect(body.type).toBe(6);
+
+    expect(h.calls).toHaveLength(1);
+    expect(h.calls[0].url).toBe(
+      "https://discord.com/api/v10/webhooks/1234567890/interaction-token-abc/messages/@original",
+    );
 
     expect(existsSync(fileDir(h.deps.config, id))).toBe(false);
     expect(await h.deps.redis.hgetall(`file:${id}`)).toEqual({});
   });
 
-  it("refuses a delete from anyone else and keeps the file", async () => {
+  it("refuses a delete from anyone else and keeps the file and message", async () => {
     const id = await uploadAndGetId("user-42");
+    h.calls.length = 0;
 
     const body = await (await h.app.fetch(buttonPress(id, "intruder"))).json();
     expect(body.type).toBe(4);
     expect(body.data.flags).toBe(64);
     expect(body.data.content).toContain("Only the person who uploaded");
 
+    expect(h.calls).toHaveLength(0);
     expect(existsSync(fileDir(h.deps.config, id))).toBe(true);
   });
 
-  it("still resolves cleanly when the file is already gone", async () => {
+  it("still removes the message when the file is already gone", async () => {
     const body = await (await h.app.fetch(buttonPress("missingid", "user-42"))).json();
-    expect(body.type).toBe(7);
-    expect(body.data.content).toContain("deleted");
+    expect(body.type).toBe(6);
+    expect(h.calls.at(-1)?.url).toContain("/messages/@original");
   });
 });
 

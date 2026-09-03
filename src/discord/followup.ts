@@ -60,6 +60,33 @@ export function buildFollowupPayload(config: Config, record: FileRecord): Follow
 }
 
 /**
+ * Delete the message a component interaction fired from.
+ *
+ * For a component interaction `@original` resolves to the message the button was
+ * attached to, so this removes the posted upload itself, not the ephemeral
+ * command reply. The interaction token is the only credential.
+ */
+export async function deleteInteractionMessage(
+  config: Config,
+  interactionToken: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean> {
+  const url = `https://discord.com/api/v10/webhooks/${config.discordAppId}/${interactionToken}/messages/@original`;
+
+  try {
+    const res = await fetchImpl(url, { method: "DELETE" });
+    if (!res.ok && res.status !== 404) {
+      console.error(`Message delete failed: ${res.status} ${await res.text()}`);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Message delete request failed:", err);
+    return false;
+  }
+}
+
+/**
  * Post into the channel the command came from.
  *
  * This webhook is the only way a user-installed command can post where the bot
