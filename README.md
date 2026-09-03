@@ -5,12 +5,15 @@ any server, DM, or group DM you are in — the bot does not have to be a member 
 
 Running `/upload` replies privately with a link to a web upload page. You drop in an
 image or video, and the bot posts it back into the channel you ran the command in:
-images as an embed, videos as an inline player.
+images as an embed, videos as an inline player. The posted message carries a **Delete**
+button; only the person who uploaded the file can use it, and pressing it edits the
+message in place.
 
 `/gallery` replies with another private link, this one showing a full-bleed contact
 sheet of everything
-you have uploaded, newest first. Each tile can be opened, have its link copied, or be
-deleted. It lists only your own files, never anyone else's.
+you have uploaded, newest first. Each tile shows its size, upload date and remaining
+lifetime, and can be opened, have its link copied, or be deleted. It lists only your
+own files, never anyone else's.
 
 Deleting needs a credential that outlives the page load, since the gallery session is
 spent rendering. The page is therefore issued an action token, good for 15 minutes,

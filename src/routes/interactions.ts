@@ -4,13 +4,15 @@ import { verifyInteractionSignature } from "../discord/verify.js";
 import { createSession } from "../storage/sessions.js";
 import { collectInfra, formatInfra } from "../infra.js";
 import { ttlValueToMs, describeTtl } from "../ttl.js";
-import { expireDue, listUserFiles, userBytes } from "../storage/store.js";
+import { deleteRecord, expireDue, getRecord, listUserFiles, userBytes } from "../storage/store.js";
 
 const PING = 1;
 const APPLICATION_COMMAND = 2;
+const MESSAGE_COMPONENT = 3;
 
 const PONG = 1;
 const CHANNEL_MESSAGE_WITH_SOURCE = 4;
+const UPDATE_MESSAGE = 7;
 const EPHEMERAL = 64;
 
 export function interactionsRoutes(deps: AppDeps): Hono {
@@ -49,6 +51,10 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     }
 
     if (body.type === PING) return c.json({ type: PONG });
+
+    if (body.type === MESSAGE_COMPONENT) {
+      return c.json(await handleComponent(deps, body));
+    }
 
     const command: string | undefined = body.data?.name;
     if (
@@ -176,6 +182,43 @@ export function interactionsRoutes(deps: AppDeps): Hono {
 
 function ephemeral(content: string) {
   return { type: CHANNEL_MESSAGE_WITH_SOURCE, data: { flags: EPHEMERAL, content } };
+}
+
+/**
+ * The Delete button on a posted upload. Only the original uploader may spend it;
+ * anyone else gets a private notice and the message is left untouched. On
+ * success the channel message is edited in place to drop the image and button.
+ */
+async function handleComponent(deps: AppDeps, body: any) {
+  const [action, id] = String(body.data?.custom_id ?? "").split(":");
+  if (action !== "del" || !id) {
+    return ephemeral("That button no longer does anything.");
+  }
+
+  const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
+  const record = await getRecord(deps.redis, id);
+
+  if (!record) {
+    return {
+      type: UPDATE_MESSAGE,
+      data: { content: "🗑️ This upload has been deleted.", embeds: [], components: [] },
+    };
+  }
+  if (!userId || record.userId !== userId) {
+    return ephemeral("Only the person who uploaded this can delete it.");
+  }
+
+  await deleteRecord(deps.redis, deps.config, id);
+  console.log(`Deleted ${id} via the message button`);
+  return {
+    type: UPDATE_MESSAGE,
+    data: {
+      content: "🗑️ This upload has been deleted.",
+      embeds: [],
+      components: [],
+      allowed_mentions: { parse: [] },
+    },
+  };
 }
 
 function formatBytes(bytes: number): string {

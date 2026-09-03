@@ -90,7 +90,7 @@ function tile(config: Config, file: FileRecord): string {
 <a class="shot" href="${escapeHtml(share)}" target="_blank" rel="noopener">${preview}</a>
 <div class="tile-body">
 <figcaption class="tile-name" title="${name}">${name}</figcaption>
-<div class="tile-meta"><span>${formatBytes(file.size)}</span><span>${formatDate(file.createdAt)}</span></div>
+<div class="tile-meta"><span>${formatBytes(file.size)}</span><span>${formatDate(file.createdAt)}</span><span>${expiryLabel(file.expiresAt)}</span></div>
 <div class="tile-actions">
 <a class="button small" href="${escapeHtml(share)}" target="_blank" rel="noopener">Open</a>
 ${
@@ -128,6 +128,15 @@ function formatBytes(bytes: number): string {
 function formatDate(ms: number): string {
   if (!ms) return "";
   return new Date(ms).toISOString().slice(0, 10);
+}
+
+/** Per-file lifetime, shown next to size and upload date on each tile. */
+function expiryLabel(expiresAt: number): string {
+  if (!expiresAt) return "kept until full";
+  const days = Math.ceil((expiresAt - Date.now()) / 86_400_000);
+  if (days <= 0) return "expiring now";
+  if (days === 1) return "deletes in 1 day";
+  return `deletes in ${days} days`;
 }
 
 function expiredPage(): string {

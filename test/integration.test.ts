@@ -145,6 +145,14 @@ describe("upload flow", () => {
     expect(payload.embeds[0].image.url).toBe(body.url);
     expect(payload.embeds[0].description).toBe("<@user-42> uploaded an image");
     expect(payload.allowed_mentions).toEqual({ parse: [] });
+
+    const id = new URL(body.fileUrl).pathname.split("/")[2];
+    expect(payload.components[0].components[0]).toMatchObject({
+      type: 2,
+      style: 4,
+      label: "Delete",
+      custom_id: `del:${id}`,
+    });
   });
 
   it("posts a bare link for a video so Discord unfurls the player", async () => {
@@ -354,6 +362,60 @@ describe("eviction during upload", () => {
 
     expect(existsSync(fileDir(h.deps.config, firstId))).toBe(false);
     expect(await h.deps.redis.hgetall(`file:${firstId}`)).toEqual({});
+  });
+});
+
+describe("delete button on a posted upload", () => {
+  async function uploadAndGetId(userId = "user-42"): Promise<string> {
+    const sid = (
+      await (
+        await h.app.fetch(
+          interactionRequest(uploadCommand({ member: { user: { id: userId } } })),
+        )
+      ).json()
+    ).data.components[0].components[0].url.split("/u/")[1];
+    const body = await (await h.app.fetch(post(sid, imagePart()))).json();
+    return new URL(body.fileUrl).pathname.split("/")[2];
+  }
+
+  function buttonPress(id: string, userId: string) {
+    return interactionRequest({
+      type: 3,
+      token: "interaction-token-abc",
+      channel_id: "channel-99",
+      member: { user: { id: userId } },
+      data: { custom_id: `del:${id}`, component_type: 2 },
+    });
+  }
+
+  it("lets the uploader delete their own upload and edits the message", async () => {
+    const id = await uploadAndGetId("user-42");
+
+    const body = await (await h.app.fetch(buttonPress(id, "user-42"))).json();
+    expect(body.type).toBe(7);
+    expect(body.data.embeds).toEqual([]);
+    expect(body.data.components).toEqual([]);
+    expect(body.data.content).toContain("deleted");
+
+    expect(existsSync(fileDir(h.deps.config, id))).toBe(false);
+    expect(await h.deps.redis.hgetall(`file:${id}`)).toEqual({});
+  });
+
+  it("refuses a delete from anyone else and keeps the file", async () => {
+    const id = await uploadAndGetId("user-42");
+
+    const body = await (await h.app.fetch(buttonPress(id, "intruder"))).json();
+    expect(body.type).toBe(4);
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("Only the person who uploaded");
+
+    expect(existsSync(fileDir(h.deps.config, id))).toBe(true);
+  });
+
+  it("still resolves cleanly when the file is already gone", async () => {
+    const body = await (await h.app.fetch(buttonPress("missingid", "user-42"))).json();
+    expect(body.type).toBe(7);
+    expect(body.data.content).toContain("deleted");
   });
 });
 

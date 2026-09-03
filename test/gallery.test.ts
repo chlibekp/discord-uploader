@@ -148,6 +148,38 @@ describe("gallery page", () => {
     expect(html).toMatch(/data-copy="https:\/\/uploader\.test\/f\/[\w-]{22}\/shot\.png"/);
   });
 
+  it("shows each file's remaining lifetime on its tile", async () => {
+    await uploadAs("user-42", "temp.png");
+    const html = await (await openGallery("user-42")).text();
+    // The default ttl is 30 days.
+    expect(html).toMatch(/deletes in (29|30) days/);
+  });
+
+  it("labels a forever upload as kept", async () => {
+    const sid = await openSession(
+      uploadCommand({
+        member: { user: { id: "user-42" } },
+        data: { name: "upload", type: 1, options: [{ name: "ttl", type: 3, value: "forever" }] },
+      }),
+    );
+    const part = multipart({ width: "1", height: "1" }, {
+      field: "file",
+      filename: "keep.png",
+      contentType: "image/png",
+      content: fixtures.png(),
+    });
+    await h.app.fetch(
+      new Request(`https://uploader.test/u/${sid}/file`, {
+        method: "POST",
+        headers: { "Content-Type": part.contentType },
+        body: part.body,
+      }),
+    );
+
+    const html = await (await openGallery("user-42")).text();
+    expect(html).toContain("kept until full");
+  });
+
   it("escapes filenames rather than rendering them as markup", async () => {
     // The stored name is already slugified, so this asserts the second line of
     // defence rather than the first.

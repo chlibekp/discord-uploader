@@ -6,7 +6,20 @@ const EMBED_COLOR = 5793266;
 export interface FollowupPayload {
   content?: string;
   embeds?: unknown[];
+  components?: unknown[];
   allowed_mentions: { parse: [] };
+}
+
+/**
+ * A danger button whose custom_id carries the file id. Pressing it fires a
+ * message-component interaction back to /interactions, where ownership is
+ * checked before anything is deleted.
+ */
+export function deleteButtonRow(record: FileRecord): unknown {
+  return {
+    type: 1,
+    components: [{ type: 2, style: 4, label: "Delete", custom_id: `del:${record.id}` }],
+  };
 }
 
 export function fileUrl(config: Config, record: FileRecord): string {
@@ -34,12 +47,14 @@ export function buildFollowupPayload(config: Config, record: FileRecord): Follow
           color: EMBED_COLOR,
         },
       ],
+      components: [deleteButtonRow(record)],
       allowed_mentions: { parse: [] },
     };
   }
 
   return {
     content: `<@${record.userId}> uploaded a video\n${watchUrl(config, record)}`,
+    components: [deleteButtonRow(record)],
     allowed_mentions: { parse: [] },
   };
 }
