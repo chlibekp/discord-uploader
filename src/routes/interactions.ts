@@ -60,6 +60,7 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       return c.json({
         type: CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
+          flags: EPHEMERAL,
           content:
             "Available commands:\n/upload - Upload an image or video\n/gallery - Browse everything you have uploaded\n/info - Show infrastructure and resource usage\n/help - Show this help message",
         },
