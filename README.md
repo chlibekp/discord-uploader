@@ -1,6 +1,6 @@
 # discord-uploader
 
-A Discord bot: `/upload`, `/gallery`, `/stats`, `/info` and `/help`. It is **user-installable**, so it works in
+A Discord bot: `/upload`, `/gallery`, `/stats`, `/info`, `/support` and `/help`. It is **user-installable**, so it works in
 any server, DM, or group DM you are in — the bot does not have to be a member there.
 
 Running `/upload` replies privately with a link to a web upload page. You drop in an

@@ -111,6 +111,17 @@ describe("POST /interactions", () => {
     globalThis.fetch = realFetch;
   });
 
+  it("answers /support with a link to the support page", async () => {
+    const payload = uploadCommand({ data: { name: "support", type: 1 } });
+    const res = await h.app.fetch(interactionRequest(payload));
+    const body = await res.json();
+
+    expect(body.type).toBe(4);
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("https://imageuploader.xyz/support");
+    expect(body.data.components[0].components[0].url).toBe("https://imageuploader.xyz/support");
+  });
+
   it("reads the user id from a DM payload, where there is no member object", async () => {
     const payload = uploadCommand({ member: undefined, user: { id: "dm-user" }, guild_id: undefined });
     const res = await h.app.fetch(interactionRequest(payload));

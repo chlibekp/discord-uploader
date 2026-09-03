@@ -56,12 +56,21 @@ export const STATS_COMMAND = {
   contexts: CONTEXTS,
 } as const;
 
+export const SUPPORT_COMMAND = {
+  name: "support",
+  description: "Get a link to the support page",
+  type: 1,
+  integration_types: INTEGRATION_TYPES,
+  contexts: CONTEXTS,
+} as const;
+
 export const COMMANDS = [
   UPLOAD_COMMAND,
   GALLERY_COMMAND,
   HELP_COMMAND,
   INFO_COMMAND,
   STATS_COMMAND,
+  SUPPORT_COMMAND,
 ];
 
 /**

@@ -16,6 +16,8 @@ const CHANNEL_MESSAGE_WITH_SOURCE = 4;
 const DEFERRED_UPDATE_MESSAGE = 6;
 const EPHEMERAL = 64;
 
+const SUPPORT_URL = "https://imageuploader.xyz/support";
+
 export function interactionsRoutes(deps: AppDeps): Hono {
   const app = new Hono();
 
@@ -64,7 +66,8 @@ export function interactionsRoutes(deps: AppDeps): Hono {
         command !== "gallery" &&
         command !== "help" &&
         command !== "info" &&
-        command !== "stats")
+        command !== "stats" &&
+        command !== "support")
     ) {
       return c.json({ error: "Unsupported interaction" }, 400);
     }
@@ -75,7 +78,23 @@ export function interactionsRoutes(deps: AppDeps): Hono {
         data: {
           flags: EPHEMERAL,
           content:
-            "Available commands:\n/upload - Upload an image or video (optional ttl to auto-delete)\n/gallery - Browse everything you have uploaded\n/stats - Show how much you have stored\n/info - Show infrastructure, resource usage, and install count\n/help - Show this help message",
+            "Available commands:\n/upload - Upload an image or video (optional ttl to auto-delete)\n/gallery - Browse everything you have uploaded\n/stats - Show how much you have stored\n/info - Show infrastructure, resource usage, and install count\n/support - Get a link to the support page\n/help - Show this help message",
+        },
+      });
+    }
+
+    if (command === "support") {
+      return c.json({
+        type: CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          flags: EPHEMERAL,
+          content: `Need help? Visit the support page: ${SUPPORT_URL}`,
+          components: [
+            {
+              type: 1,
+              components: [{ type: 2, style: 5, label: "Open support page", url: SUPPORT_URL }],
+            },
+          ],
         },
       });
     }
