@@ -2,6 +2,7 @@
   "name": "discord-uploader",
   "version": "1.0.0",
   "private": true,
+  "license": "LicenseRef-PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "engines": {
     "node": ">=22"

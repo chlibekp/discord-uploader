@@ -183,3 +183,9 @@ through `app.fetch()` with Discord calls stubbed. No network or Redis needed.
 ## Design
 
 Full design notes: [`docs/superpowers/specs/2026-09-02-discord-uploader-design.md`](docs/superpowers/specs/2026-09-02-discord-uploader-design.md).
+
+## License
+
+[PolyForm Noncommercial License 1.0.0](LICENSE.md). Use, modification, and
+redistribution are permitted for any noncommercial purpose. Commercial use
+requires a separate license from the copyright holder.
