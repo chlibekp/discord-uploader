@@ -75,13 +75,13 @@ export function interactionsRoutes(deps: AppDeps): Hono {
         data: {
           flags: EPHEMERAL,
           content:
-            "Available commands:\n/upload - Upload an image or video (optional ttl to auto-delete)\n/gallery - Browse everything you have uploaded\n/stats - Show how much you have stored\n/info - Show infrastructure and resource usage\n/help - Show this help message",
+            "Available commands:\n/upload - Upload an image or video (optional ttl to auto-delete)\n/gallery - Browse everything you have uploaded\n/stats - Show how much you have stored\n/info - Show infrastructure, resource usage, and install count\n/help - Show this help message",
         },
       });
     }
 
     if (command === "info") {
-      const report = await collectInfra(deps.config.dataDir);
+      const report = await collectInfra(deps.config.dataDir, deps.config.discordBotToken);
       return c.json({
         type: CHANNEL_MESSAGE_WITH_SOURCE,
         data: { flags: EPHEMERAL, content: formatInfra(report) },

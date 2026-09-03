@@ -68,6 +68,33 @@ export interface InfraReport {
   memory: string;
   disk: string;
   uptime: string;
+  installs: string;
+}
+
+/**
+ * Discord's approximated install count for this application, refreshed daily on
+ * their side. Best-effort: a failed request or missing token yields null and the
+ * line is omitted from the report.
+ */
+async function collectInstalls(botToken: string | undefined): Promise<string | null> {
+  if (!botToken) return null;
+  try {
+    const res = await fetch("https://discord.com/api/v10/applications/@me", {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+    if (!res.ok) return null;
+    const app = (await res.json()) as {
+      approximate_guild_count?: number;
+      approximate_user_install_count?: number;
+    };
+    const guilds = app.approximate_guild_count ?? 0;
+    const users = app.approximate_user_install_count ?? 0;
+    return `~${guilds} server${guilds === 1 ? "" : "s"}, ~${users} individual user${
+      users === 1 ? "" : "s"
+    } (updated daily)`;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -75,7 +102,10 @@ export interface InfraReport {
  * individually guarded: a missing cgroup file (e.g. on macOS in dev) falls back
  * to host-level numbers from `os` rather than failing the command.
  */
-export async function collectInfra(dataDir: string): Promise<InfraReport> {
+export async function collectInfra(
+  dataDir: string,
+  botToken?: string,
+): Promise<InfraReport> {
   const env = process.env;
   const region =
     env.RAILWAY_REPLICA_REGION ||
@@ -138,6 +168,8 @@ export async function collectInfra(dataDir: string): Promise<InfraReport> {
     /* keep "unavailable" */
   }
 
+  const installs = await collectInstalls(botToken);
+
   return {
     region,
     host: `${os.type()} ${os.release()} ${os.arch()}, ${hostCpus} host cores`,
@@ -146,6 +178,7 @@ export async function collectInfra(dataDir: string): Promise<InfraReport> {
     memory: memLine,
     disk: `${dataDir}: ${diskLine}`,
     uptime: `process ${fmtDuration(process.uptime())}, host ${fmtDuration(os.uptime())}`,
+    installs: installs ?? "unavailable",
   };
 }
 
@@ -159,5 +192,6 @@ export function formatInfra(r: InfraReport): string {
     `**Memory:** ${r.memory}`,
     `**Disk:** ${r.disk}`,
     `**Uptime:** ${r.uptime}`,
+    `**Installs:** ${r.installs}`,
   ].join("\n");
 }

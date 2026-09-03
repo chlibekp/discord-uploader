@@ -87,6 +87,15 @@ describe("POST /interactions", () => {
   });
 
   it("answers /info with an ephemeral infrastructure report", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init?: RequestInit) =>
+      String(url).includes("discord.com/api")
+        ? new Response(
+            JSON.stringify({ approximate_guild_count: 3, approximate_user_install_count: 42 }),
+            { status: 200 },
+          )
+        : realFetch(url, init)) as typeof fetch;
+
     const payload = uploadCommand({ data: { name: "info", type: 1 } });
     const res = await h.app.fetch(interactionRequest(payload));
     const body = await res.json();
@@ -97,6 +106,9 @@ describe("POST /interactions", () => {
     expect(body.data.content).toContain("**CPU:**");
     expect(body.data.content).toContain("**Memory:**");
     expect(body.data.content).toContain("**Disk:**");
+    expect(body.data.content).toContain("**Installs:**");
+    expect(body.data.content).toContain("~3 servers, ~42 individual users");
+    globalThis.fetch = realFetch;
   });
 
   it("reads the user id from a DM payload, where there is no member object", async () => {
