@@ -114,7 +114,7 @@ would have a different disk and 404 on files the first one wrote. `railway.json`
 | `MAX_FILE_BYTES` | no | `2147483648` | 2 GB per file |
 | `MAX_TOTAL_BYTES` | no | `4831838208` | 4.5 GB, ~10% under a 5 GB volume |
 | `MAX_USER_BYTES` | no | `2147483648` | 2 GB cap on one uploader's live files |
-| `RATE_LIMIT_SESSIONS_PER_HOUR` | no | `20` | Max `/upload` + `/gallery` links one user may mint per rolling hour. `0` disables |
+| `RATE_LIMIT_SESSIONS_PER_HOUR` | no | `150` | Max `/upload` + `/gallery` links one user may mint per rolling hour. `0` disables |
 | `RATE_LIMIT_UPLOADS_PER_HOUR` | no | `30` | Max files one user may upload per rolling hour. `0` disables |
 | `PORT` | no | `3000` | Set by Railway |
 
