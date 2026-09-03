@@ -357,6 +357,103 @@ describe("eviction during upload", () => {
   });
 });
 
+describe("/stats", () => {
+  const statsCommand = () => uploadCommand({ data: { name: "stats", type: 1 } });
+
+  it("reports nothing stored for a new user", async () => {
+    const body = await (await h.app.fetch(interactionRequest(statsCommand()))).json();
+    expect(body.data.flags).toBe(64);
+    expect(body.data.content).toContain("nothing stored");
+  });
+
+  it("counts the caller's files and bytes after an upload", async () => {
+    await h.app.fetch(post(await startSession(), imagePart()));
+    const body = await (await h.app.fetch(interactionRequest(statsCommand()))).json();
+    expect(body.data.content).toContain("**Files:** 1");
+    expect(body.data.content).toMatch(/\*\*Used:\*\* .+ \/ .+ \(\d+%\)/);
+  });
+});
+
+describe("upload ttl", () => {
+  function ttlCommand(value: string) {
+    return uploadCommand({
+      data: { name: "upload", type: 1, options: [{ name: "ttl", type: 3, value }] },
+    });
+  }
+
+  async function startWithTtl(value: string): Promise<string> {
+    const res = await h.app.fetch(interactionRequest(ttlCommand(value)));
+    const url: string = (await res.json()).data.components[0].components[0].url;
+    return url.split("/u/")[1];
+  }
+
+  it("stamps an expiry and indexes it when a ttl is chosen", async () => {
+    const body = await (await h.app.fetch(post(await startWithTtl("1h"), imagePart()))).json();
+    const id = new URL(body.fileUrl).pathname.split("/")[2];
+
+    const expiresAt = Number(await h.deps.redis.hget(`file:${id}`, "expiresAt"));
+    expect(expiresAt).toBeGreaterThan(Date.now());
+    expect(await h.deps.redis.zscore("files:expiry", id)).toBe(String(expiresAt));
+  });
+
+  it("keeps forever uploads out of the expiry index", async () => {
+    const body = await (await h.app.fetch(post(await startWithTtl("forever"), imagePart()))).json();
+    const id = new URL(body.fileUrl).pathname.split("/")[2];
+
+    expect(await h.deps.redis.hget(`file:${id}`, "expiresAt")).toBe("0");
+    expect(await h.deps.redis.zscore("files:expiry", id)).toBe(null);
+  });
+
+  it("reaps a file whose expiry has passed on the next gallery open", async () => {
+    const body = await (await h.app.fetch(post(await startWithTtl("1h"), imagePart()))).json();
+    const id = new URL(body.fileUrl).pathname.split("/")[2];
+    await h.deps.redis.zadd("files:expiry", Date.now() - 1000, id);
+
+    const gid = await openSessionGallery();
+    await h.app.fetch(new Request(`https://uploader.test/g/${gid}`));
+
+    expect(existsSync(fileDir(h.deps.config, id))).toBe(false);
+    expect(await h.deps.redis.hgetall(`file:${id}`)).toEqual({});
+  });
+
+  async function openSessionGallery(): Promise<string> {
+    const payload = uploadCommand({ data: { name: "gallery", type: 1 } });
+    const url: string = (await (await h.app.fetch(interactionRequest(payload))).json()).data
+      .components[0].components[0].url;
+    return url.split("/g/")[1];
+  }
+});
+
+describe("per-user quota", () => {
+  it("evicts the uploader's own oldest file to fit a new one", async () => {
+    h.cleanup();
+    h = await makeHarness({ maxUserBytes: 4000, maxTotalBytes: 10 * 1024 * 1024 });
+
+    const first = await (
+      await h.app.fetch(post(await startSession(), imagePart(fixtures.png(3000))))
+    ).json();
+    const firstId = new URL(first.fileUrl).pathname.split("/")[2];
+
+    const second = await (
+      await h.app.fetch(post(await startSession(), imagePart(fixtures.png(3000))))
+    ).json();
+    const secondId = new URL(second.fileUrl).pathname.split("/")[2];
+
+    expect(existsSync(fileDir(h.deps.config, firstId))).toBe(false);
+    expect(existsSync(fileDir(h.deps.config, secondId))).toBe(true);
+    expect(Number(await h.deps.redis.get("user:user-42:bytes"))).toBe(3000);
+  });
+
+  it("rejects a single file larger than the whole quota", async () => {
+    h.cleanup();
+    h = await makeHarness({ maxUserBytes: 2000, maxFileBytes: 10 * 1024 * 1024 });
+
+    const res = await h.app.fetch(post(await startSession(), imagePart(fixtures.png(5000))));
+    expect(res.status).toBe(413);
+    expect(readdirSync(h.deps.config.dataDir)).toEqual([]);
+  });
+});
+
 describe("GET /healthz", () => {
   it("reports ok when Redis and the volume are reachable", async () => {
     const res = await h.app.fetch(new Request("https://uploader.test/healthz"));

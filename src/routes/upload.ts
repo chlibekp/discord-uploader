@@ -13,7 +13,14 @@ import { requestNodeStream } from "../http/body.js";
 import { sweep } from "../storage/lru.js";
 import { claimSession, deleteSession, getSession, newId } from "../storage/sessions.js";
 import { SNIFF_BYTES, slugifyBasename, sniff } from "../storage/sniff.js";
-import { fileDir, saveRecord } from "../storage/store.js";
+import {
+  deleteRecord,
+  expireDue,
+  fileDir,
+  listUserIdsOldestFirst,
+  saveRecord,
+  userBytes,
+} from "../storage/store.js";
 import type { FileRecord, SniffResult, UploadSession } from "../types.js";
 
 /** An interaction token is usable for 15 minutes from the command. */
@@ -79,6 +86,14 @@ export function uploadRoutes(deps: AppDeps): Hono {
       return c.json({ error: "Upload failed" }, 500);
     }
 
+    // A file larger than the whole per-user quota can never fit, and evicting
+    // the uploader's other files would not change that.
+    if (received.size > deps.config.maxUserBytes) {
+      await rm(dir, { recursive: true, force: true });
+      return c.json({ error: "File exceeds your personal storage quota" }, 413);
+    }
+
+    const now = Date.now();
     const record: FileRecord = {
       id,
       name: received.name,
@@ -87,10 +102,17 @@ export function uploadRoutes(deps: AppDeps): Hono {
       size: received.size,
       width: received.width,
       height: received.height,
-      createdAt: Date.now(),
+      createdAt: now,
+      expiresAt: session.ttlMs > 0 ? now + session.ttlMs : 0,
       userId: session.userId,
       channelId: session.channelId,
     };
+
+    // Drop anything already expired, then make room within the uploader's own
+    // quota by removing their least-recent files first. Other users are never
+    // touched, so one person cannot evict everyone else.
+    await expireDue(deps.redis, deps.config, now);
+    await enforceUserQuota(deps, session.userId, record.size);
 
     await saveRecord(deps.redis, record);
     await sweep(deps.redis, deps.config);
@@ -125,6 +147,23 @@ async function maybePost(
   }
   const payload = buildFollowupPayload(deps.config, record);
   return postFollowup(deps.config, session.interactionToken, payload, deps.fetch);
+}
+
+/**
+ * Evict the uploader's own oldest files until the incoming file fits under
+ * their quota. `incomingSize` is already known to be <= the quota, so the loop
+ * always terminates once enough of their files are gone.
+ */
+async function enforceUserQuota(deps: AppDeps, userId: string, incomingSize: number): Promise<void> {
+  let used = await userBytes(deps.redis, userId);
+  if (used + incomingSize <= deps.config.maxUserBytes) return;
+
+  for (const id of await listUserIdsOldestFirst(deps.redis, userId)) {
+    await deleteRecord(deps.redis, deps.config, id);
+    console.log(`Evicted ${id} to stay under ${userId}'s storage quota`);
+    used = await userBytes(deps.redis, userId);
+    if (used + incomingSize <= deps.config.maxUserBytes) return;
+  }
 }
 
 interface ReceivedUpload {

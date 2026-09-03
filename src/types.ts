@@ -17,6 +17,8 @@ export interface UploadSession {
   interactionToken: string;
   createdAt: number;
   expiresAt: number;
+  /** How long an upload made in this session should live; 0 means forever. */
+  ttlMs: number;
 }
 
 export interface FileRecord {
@@ -28,6 +30,8 @@ export interface FileRecord {
   width: number;
   height: number;
   createdAt: number;
+  /** Epoch ms when the file should be auto-deleted; 0 means it never expires. */
+  expiresAt: number;
   userId: string;
   channelId: string;
 }

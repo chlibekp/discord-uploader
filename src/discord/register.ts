@@ -1,4 +1,5 @@
 import type { Config } from "../config.js";
+import { TTL_OPTIONS } from "../ttl.js";
 
 // 0 = guild install, 1 = user install. Both, so the commands follow the user.
 const INTEGRATION_TYPES = [0, 1];
@@ -11,6 +12,16 @@ export const UPLOAD_COMMAND = {
   type: 1,
   integration_types: INTEGRATION_TYPES,
   contexts: CONTEXTS,
+  options: [
+    {
+      // 3 = STRING. Choice values are the ttl keys shared with src/ttl.ts.
+      type: 3,
+      name: "ttl",
+      description: "When to auto-delete this upload (default: 30 days)",
+      required: false,
+      choices: TTL_OPTIONS.map((o) => ({ name: o.name, value: o.value })),
+    },
+  ],
 } as const;
 
 export const GALLERY_COMMAND = {
@@ -37,7 +48,21 @@ export const INFO_COMMAND = {
   contexts: CONTEXTS,
 } as const;
 
-export const COMMANDS = [UPLOAD_COMMAND, GALLERY_COMMAND, HELP_COMMAND, INFO_COMMAND];
+export const STATS_COMMAND = {
+  name: "stats",
+  description: "Show how much you have stored",
+  type: 1,
+  integration_types: INTEGRATION_TYPES,
+  contexts: CONTEXTS,
+} as const;
+
+export const COMMANDS = [
+  UPLOAD_COMMAND,
+  GALLERY_COMMAND,
+  HELP_COMMAND,
+  INFO_COMMAND,
+  STATS_COMMAND,
+];
 
 /**
  * Overwrite the application's global commands. PUT is a full replace, so this is

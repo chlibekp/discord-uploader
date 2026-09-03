@@ -8,7 +8,11 @@ export const FILE_KEY = (id: string) => `file:${id}`;
 export const LRU_KEY = "files:lru";
 /** Per-user index, so /gallery can list one person's uploads without a scan. */
 export const USER_KEY = (userId: string) => `user:${userId}:files`;
+/** Running byte total for one uploader, so the per-user quota needs no scan. */
+export const USER_BYTES_KEY = (userId: string) => `user:${userId}:bytes`;
 export const TOTAL_KEY = "total:bytes";
+/** ids of files with a finite lifetime, scored by their expiry timestamp. */
+export const EXPIRY_KEY = "files:expiry";
 
 /**
  * One directory per file. Eviction then deletes a directory whose name is a
@@ -47,7 +51,7 @@ export async function verifyDataDirWritable(config: Config): Promise<void> {
 }
 
 export async function saveRecord(redis: Redis, record: FileRecord): Promise<void> {
-  await redis
+  const tx = redis
     .multi()
     .hset(FILE_KEY(record.id), {
       name: record.name,
@@ -57,13 +61,17 @@ export async function saveRecord(redis: Redis, record: FileRecord): Promise<void
       width: String(record.width),
       height: String(record.height),
       createdAt: String(record.createdAt),
+      expiresAt: String(record.expiresAt),
       userId: record.userId,
       channelId: record.channelId,
     })
     .zadd(LRU_KEY, record.createdAt, record.id)
     .zadd(USER_KEY(record.userId), record.createdAt, record.id)
-    .incrby(TOTAL_KEY, record.size)
-    .exec();
+    .incrby(USER_BYTES_KEY(record.userId), record.size)
+    .incrby(TOTAL_KEY, record.size);
+
+  if (record.expiresAt > 0) tx.zadd(EXPIRY_KEY, record.expiresAt, record.id);
+  await tx.exec();
 }
 
 export async function getRecord(redis: Redis, id: string): Promise<FileRecord | null> {
@@ -78,6 +86,7 @@ export async function getRecord(redis: Redis, id: string): Promise<FileRecord | 
     width: Number(raw.width ?? 0),
     height: Number(raw.height ?? 0),
     createdAt: Number(raw.createdAt ?? 0),
+    expiresAt: Number(raw.expiresAt ?? 0),
     userId: raw.userId ?? "",
     channelId: raw.channelId ?? "",
   };
@@ -94,11 +103,34 @@ export async function deleteRecord(redis: Redis, config: Config, id: string): Pr
   const record = await getRecord(redis, id);
   await rm(fileDir(config, id), { recursive: true, force: true });
 
-  const tx = redis.multi().del(FILE_KEY(id)).zrem(LRU_KEY, id);
+  const tx = redis.multi().del(FILE_KEY(id)).zrem(LRU_KEY, id).zrem(EXPIRY_KEY, id);
   // Without the record we cannot know which user index holds this id; the boot
   // reconciliation rebuilds those from scratch and clears any leftovers.
-  if (record) tx.zrem(USER_KEY(record.userId), id);
+  if (record) tx.zrem(USER_KEY(record.userId), id).incrby(USER_BYTES_KEY(record.userId), -record.size);
   await tx.incrby(TOTAL_KEY, record ? -record.size : 0).exec();
+}
+
+export async function userBytes(redis: Redis, userId: string): Promise<number> {
+  return Number((await redis.get(USER_BYTES_KEY(userId))) ?? 0);
+}
+
+/** One user's file ids, oldest first — the order the per-user quota evicts in. */
+export async function listUserIdsOldestFirst(redis: Redis, userId: string): Promise<string[]> {
+  return redis.zrange(USER_KEY(userId), 0, -1);
+}
+
+/**
+ * Delete every file whose expiry has passed. Cheap when nothing is due: the
+ * expiry set only holds ids with a finite lifetime, and the range query returns
+ * immediately when the earliest score is still in the future.
+ */
+export async function expireDue(redis: Redis, config: Config, now = Date.now()): Promise<string[]> {
+  const due = await redis.zrangebyscore(EXPIRY_KEY, 1, now);
+  for (const id of due) {
+    await deleteRecord(redis, config, id);
+    console.log(`Deleted ${id}: its lifetime expired`);
+  }
+  return due;
 }
 
 /**

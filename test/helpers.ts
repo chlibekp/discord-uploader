@@ -31,6 +31,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     dataDir: mkdtempSync(path.join(tmpdir(), "uploader-")),
     maxFileBytes: 2 * 1024 * 1024,
     maxTotalBytes: 10 * 1024 * 1024,
+    maxUserBytes: 8 * 1024 * 1024,
     port: 3000,
     ...overrides,
   };

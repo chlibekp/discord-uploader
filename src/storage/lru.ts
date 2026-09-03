@@ -1,11 +1,14 @@
 import type { Redis } from "ioredis";
 import type { Config } from "../config.js";
 import {
+  EXPIRY_KEY,
   LRU_KEY,
   TOTAL_KEY,
+  USER_BYTES_KEY,
   USER_KEY,
   deleteRecord,
   dirSize,
+  expireDue,
   getRecord,
   listStoredIds,
   totalBytes,
@@ -79,6 +82,9 @@ export async function reconcile(redis: Redis, config: Config): Promise<void> {
 
   await redis.set(TOTAL_KEY, String(total));
   await rebuildUserIndex(redis, [...stillKnown]);
+
+  const reaped = await expireDue(redis, config);
+  if (reaped.length > 0) console.log(`Reconciled storage: reaped ${reaped.length} expired files`);
   console.log(`Reconciled storage: ${stillKnown.size} files, ${total} bytes`);
 }
 
@@ -90,14 +96,17 @@ export async function reconcile(redis: Redis, config: Config): Promise<void> {
  * without a record to read the owner from.
  */
 async function rebuildUserIndex(redis: Redis, ids: string[]): Promise<void> {
-  const stale = await redis.keys(USER_KEY("*"));
+  const stale = [...(await redis.keys(USER_KEY("*"))), ...(await redis.keys(USER_BYTES_KEY("*")))];
   if (stale.length > 0) await redis.del(...stale);
+  await redis.del(EXPIRY_KEY);
 
   let indexed = 0;
   for (const id of ids) {
     const record = await getRecord(redis, id);
     if (!record?.userId) continue;
     await redis.zadd(USER_KEY(record.userId), record.createdAt, id);
+    await redis.incrby(USER_BYTES_KEY(record.userId), record.size);
+    if (record.expiresAt > 0) await redis.zadd(EXPIRY_KEY, record.expiresAt, id);
     indexed += 1;
   }
   console.log(`Rebuilt per-user index for ${indexed} files`);

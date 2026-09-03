@@ -1,6 +1,6 @@
 # discord-uploader
 
-A Discord bot with two commands, `/upload` and `/gallery`. It is **user-installable**, so it works in
+A Discord bot: `/upload`, `/gallery`, `/stats`, `/info` and `/help`. It is **user-installable**, so it works in
 any server, DM, or group DM you are in — the bot does not have to be a member there.
 
 Running `/upload` replies privately with a link to a web upload page. You drop in an
@@ -110,6 +110,7 @@ would have a different disk and 404 on files the first one wrote. `railway.json`
 | `DATA_DIR` | no | `/data` | Volume mount path |
 | `MAX_FILE_BYTES` | no | `2147483648` | 2 GB per file |
 | `MAX_TOTAL_BYTES` | no | `4831838208` | 4.5 GB, ~10% under a 5 GB volume |
+| `MAX_USER_BYTES` | no | `2147483648` | 2 GB cap on one uploader's live files |
 | `PORT` | no | `3000` | Set by Railway |
 
 ## Storage and eviction
@@ -123,6 +124,17 @@ After each upload, a sweep deletes least-recently-accessed files until total usa
 `MAX_TOTAL_BYTES`. Files younger than 60 seconds are never evicted — otherwise an
 upload larger than the remaining headroom would delete itself and hand you a dead link.
 At boot, Redis and the volume are reconciled and the byte counter recomputed.
+
+Each uploader also has a `MAX_USER_BYTES` quota (2 GB). When a new upload would push
+them over it, their own oldest files are evicted first to make room — other people's
+files are never touched. A single file larger than the quota is rejected outright.
+
+`/upload` takes an optional `ttl` (1h / 24h / 7d / 30d / forever, default 30d). Files
+with a finite lifetime sit in a `files:expiry` sorted set and are reaped lazily — on
+boot, on the next upload, and when a `/gallery` link is opened.
+
+`/stats` reports the caller's file count, bytes used against the quota, oldest and
+newest upload, and the next scheduled auto-delete.
 
 Set `MAX_TOTAL_BYTES` below your actual volume size. Going over the cap with nothing
 evictable is logged and otherwise ignored; the disk filling up is not.

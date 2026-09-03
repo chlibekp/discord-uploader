@@ -7,6 +7,8 @@ export interface Config {
   dataDir: string;
   maxFileBytes: number;
   maxTotalBytes: number;
+  /** Ceiling on the combined size of one uploader's live files. */
+  maxUserBytes: number;
   port: number;
 }
 
@@ -14,6 +16,7 @@ const DEFAULTS = {
   DATA_DIR: "/data",
   MAX_FILE_BYTES: "2147483648",
   MAX_TOTAL_BYTES: "4831838208",
+  MAX_USER_BYTES: "2147483648",
   PORT: "3000",
 } as const;
 
@@ -54,6 +57,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     dataDir: env.DATA_DIR?.trim() || DEFAULTS.DATA_DIR,
     maxFileBytes: positiveInt(env, "MAX_FILE_BYTES", DEFAULTS.MAX_FILE_BYTES),
     maxTotalBytes: positiveInt(env, "MAX_TOTAL_BYTES", DEFAULTS.MAX_TOTAL_BYTES),
+    maxUserBytes: positiveInt(env, "MAX_USER_BYTES", DEFAULTS.MAX_USER_BYTES),
     port: positiveInt(env, "PORT", DEFAULTS.PORT),
   };
 }

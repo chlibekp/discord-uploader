@@ -4,7 +4,7 @@ import { UPLOAD_PAGE_CSP, assets } from "../assets.js";
 import { fileUrl, watchUrl } from "../discord/followup.js";
 import { expiredShell } from "../pages.js";
 import { claimSession, createActionToken, readActionToken } from "../storage/sessions.js";
-import { deleteRecord, getRecord, listUserFiles } from "../storage/store.js";
+import { deleteRecord, expireDue, getRecord, listUserFiles } from "../storage/store.js";
 import type { Config } from "../config.js";
 import type { FileRecord } from "../types.js";
 
@@ -24,6 +24,8 @@ export function galleryRoutes(deps: AppDeps): Hono {
     if (claim.status !== "ok" || claim.session.kind !== "gallery") {
       return c.html(expiredPage(), 404, { "Content-Security-Policy": UPLOAD_PAGE_CSP });
     }
+
+    await expireDue(deps.redis, deps.config);
 
     // Scoped to the invoker, so a leaked link still exposes only their own files.
     const files = await listUserFiles(deps.redis, claim.session.userId);
@@ -91,7 +93,12 @@ function tile(config: Config, file: FileRecord): string {
 <div class="tile-meta"><span>${formatBytes(file.size)}</span><span>${formatDate(file.createdAt)}</span></div>
 <div class="tile-actions">
 <a class="button small" href="${escapeHtml(share)}" target="_blank" rel="noopener">Open</a>
-<button class="button small" type="button" data-copy="${escapeHtml(share)}">Copy</button>
+${
+  file.kind === "video"
+    ? `<button class="button small" type="button" data-copy="${escapeHtml(share)}">Copy page</button>
+<button class="button small" type="button" data-copy="${escapeHtml(direct)}">Copy direct</button>`
+    : `<button class="button small" type="button" data-copy="${escapeHtml(direct)}">Copy link</button>`
+}
 <button class="button small danger" type="button" data-delete="${file.id}" data-name="${name}">Delete</button>
 </div>
 </div>

@@ -44,6 +44,7 @@ export async function createSession(
       channelId: session.channelId,
       guildId: session.guildId,
       interactionToken: session.interactionToken,
+      ttlMs: String(session.ttlMs),
       createdAt: String(session.createdAt),
       expiresAt: String(session.expiresAt),
     })
@@ -62,6 +63,7 @@ function hydrate(sid: string, raw: Record<string, string>): UploadSession | null
     channelId: raw.channelId,
     guildId: raw.guildId ?? "",
     interactionToken: raw.interactionToken,
+    ttlMs: Number(raw.ttlMs ?? 0),
     createdAt: Number(raw.createdAt ?? 0),
     expiresAt: Number(raw.expiresAt ?? 0),
   };
