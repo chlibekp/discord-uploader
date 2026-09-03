@@ -14,7 +14,7 @@ permissions:
 
 env:
   # opencode model slug (provider/model). Groq free tier.
-  REVIEW_MODEL: groq/llama-3.3-70b-versatile
+  REVIEW_MODEL: groq/openai/gpt-oss-120b
 
 jobs:
   review:
