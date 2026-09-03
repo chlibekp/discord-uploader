@@ -25,6 +25,15 @@ RUN pnpm install --prod --frozen-lockfile
 FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Runtime configuration (set these in Railway, not here):
+#   Required: DISCORD_APP_ID, DISCORD_PUBLIC_KEY, DISCORD_BOT_TOKEN,
+#             PUBLIC_URL, REDIS_URL
+#   Optional: DATA_DIR         (default /data)
+#             MAX_FILE_BYTES   (default 2147483648  – 2 GB per file)
+#             MAX_TOTAL_BYTES  (default 4831838208  – whole-volume cap)
+#             MAX_USER_BYTES   (default 2147483648  – 2 GB per uploader)
+#             PORT             (default 3000, set by Railway)
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
