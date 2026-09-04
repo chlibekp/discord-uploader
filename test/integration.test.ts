@@ -102,12 +102,15 @@ describe("POST /interactions", () => {
 
     expect(body.type).toBe(4);
     expect(body.data.flags).toBe(64);
-    expect(body.data.content).toContain("**Region:**");
-    expect(body.data.content).toContain("**CPU:**");
-    expect(body.data.content).toContain("**Memory:**");
-    expect(body.data.content).toContain("**Disk:**");
-    expect(body.data.content).toContain("**Installs:**");
-    expect(body.data.content).toContain("~3 servers, ~42 individual users");
+    const fields = body.data.embeds[0].fields.map((f: { name: string }) => f.name);
+    expect(fields).toEqual(
+      expect.arrayContaining(["Region", "CPU", "Memory", "Disk", "Installs"]),
+    );
+    const installs = body.data.embeds[0].fields.find(
+      (f: { name: string }) => f.name === "Installs",
+    );
+    expect(installs.value).toContain("~3 servers, ~42 individual users");
+    expect(body.data.embeds[0].color).toBe(5793266);
     globalThis.fetch = realFetch;
   });
 
@@ -118,7 +121,7 @@ describe("POST /interactions", () => {
 
     expect(body.type).toBe(4);
     expect(body.data.flags).toBe(64);
-    expect(body.data.content).toContain("https://imageuploader.xyz/support");
+    expect(body.data.embeds[0].description).toContain("https://imageuploader.xyz/support");
     expect(body.data.components[0].components[0].url).toBe("https://imageuploader.xyz/support");
   });
 
@@ -457,14 +460,18 @@ describe("/stats", () => {
   it("reports nothing stored for a new user", async () => {
     const body = await (await h.app.fetch(interactionRequest(statsCommand()))).json();
     expect(body.data.flags).toBe(64);
-    expect(body.data.content).toContain("nothing stored");
+    expect(body.data.embeds[0].description).toContain("nothing stored yet");
+    expect(body.data.embeds[0].description).toMatch(/░{10} 0%/);
   });
 
   it("counts the caller's files and bytes after an upload", async () => {
     await h.app.fetch(post(await startSession(), imagePart()));
     const body = await (await h.app.fetch(interactionRequest(statsCommand()))).json();
-    expect(body.data.content).toContain("**Files:** 1");
-    expect(body.data.content).toMatch(/\*\*Used:\*\* .+ \/ .+ \(\d+%\)/);
+    const embed = body.data.embeds[0];
+    const filesField = embed.fields.find((f: { name: string }) => f.name === "Files");
+    expect(filesField.value).toBe("1");
+    expect(embed.description).toMatch(/across \*\*1\*\* file\./);
+    expect(embed.description).toMatch(/[█░]{10} \d+%/);
   });
 });
 

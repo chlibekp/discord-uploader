@@ -181,17 +181,3 @@ export async function collectInfra(
     installs: installs ?? "unavailable",
   };
 }
-
-export function formatInfra(r: InfraReport): string {
-  return [
-    "**Infrastructure**",
-    `**Region:** ${r.region}`,
-    `**Host:** ${r.host}`,
-    `**Runtime:** ${r.runtime}`,
-    `**CPU:** ${r.cpu}`,
-    `**Memory:** ${r.memory}`,
-    `**Disk:** ${r.disk}`,
-    `**Uptime:** ${r.uptime}`,
-    `**Installs:** ${r.installs}`,
-  ].join("\n");
-}
