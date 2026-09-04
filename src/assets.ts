@@ -26,6 +26,7 @@ export const assets = {
   uploadCss: readText("upload.css"),
   galleryHtml: readText("gallery.html"),
   galleryJs: readText("gallery.js"),
+  galleryFiltersJs: readText("gallery-filters.js"),
   /** 128px sprite for the brand bar and the favicon. */
   mascotSmall: readBinary("brand/mascot-small.png"),
   /** 512px sprite for the empty state and link previews. */

@@ -16,6 +16,7 @@ import {
 } from "../discord/followup.js";
 import { requestNodeStream } from "../http/body.js";
 import { sweep } from "../storage/lru.js";
+import { checkRateLimit, minutesUntil } from "../storage/ratelimit.js";
 import {
   claimSession,
   deleteSession,
@@ -73,6 +74,28 @@ export function uploadRoutes(deps: AppDeps): Hono {
     const declared = Number(c.req.header("content-length") ?? 0);
     if (declared > deps.config.maxFileBytes + 64 * 1024) {
       return c.json({ error: "File exceeds the size limit" }, 413);
+    }
+
+    // Peeked rather than claimed, so a rate-limited request leaves the
+    // single-use link intact for the caller to retry once the window turns
+    // over instead of burning it here.
+    const peeked = await getSession(deps.redis, sid);
+    if (peeked && peeked.kind === "upload") {
+      const limit = await checkRateLimit(
+        deps.redis,
+        "upload",
+        peeked.userId,
+        deps.config.rateLimitUploadsPerHour,
+      );
+      if (!limit.allowed) {
+        return c.json(
+          {
+            error: `You're uploading too quickly. Try again in ${minutesUntil(limit.resetAt)} minute(s).`,
+            retryAfterSeconds: Math.ceil((limit.resetAt - Date.now()) / 1000),
+          },
+          429,
+        );
+      }
     }
 
     const claim = await claimSession(deps.redis, sid);

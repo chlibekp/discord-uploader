@@ -17,6 +17,7 @@ import {
   listUserFiles,
   userBytes,
 } from "../storage/store.js";
+import { checkRateLimit, minutesUntil } from "../storage/ratelimit.js";
 
 const PING = 1;
 const APPLICATION_COMMAND = 2;
@@ -197,6 +198,23 @@ export function interactionsRoutes(deps: AppDeps): Hono {
               },
             ],
           }),
+        ),
+      );
+    }
+
+    // Minting a session is the abuse surface here: each one is a fresh
+    // ephemeral link, so this is checked before creating one rather than
+    // after, and the reply looks exactly like the normal command reply.
+    const limit = await checkRateLimit(
+      deps.redis,
+      "session",
+      userId,
+      deps.config.rateLimitSessionsPerHour,
+    );
+    if (!limit.allowed) {
+      return c.json(
+        ephemeral(
+          `You're opening links too quickly. Try again in ${minutesUntil(limit.resetAt)} minute(s).`,
         ),
       );
     }

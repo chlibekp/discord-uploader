@@ -28,6 +28,12 @@ export function assetRoutes(): Hono {
       "Cache-Control": NO_CACHE,
     }),
   );
+  app.get("/assets/gallery-filters.js", (c) =>
+    c.body(assets.galleryFiltersJs, 200, {
+      "Content-Type": SCRIPT,
+      "Cache-Control": NO_CACHE,
+    }),
+  );
 
   for (const [route, body] of [
     ["/assets/silkscreen-400.woff2", assets.fontRegular],

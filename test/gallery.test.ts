@@ -323,6 +323,59 @@ describe("gallery page", () => {
   });
 });
 
+describe("gallery page: search, sort and keyboard support", () => {
+  it("renders a filter box, a sort control and a live count region", async () => {
+    await uploadAs("user-42", "one.png");
+    const html = await (await openGallery("user-42")).text();
+
+    expect(html).toContain('id="filter"');
+    expect(html).toContain('id="sort"');
+    expect(html).toContain(
+      '<option value="soonest">Soonest to expire</option>',
+    );
+    expect(html).toContain('id="filterCount"');
+    expect(html).toContain('id="liveRegion"');
+    expect(html).toMatch(/id="liveRegion"[^>]*aria-live="assertive"/);
+  });
+
+  it("gives every tile the data attributes the client needs for filtering, sorting and the live countdown", async () => {
+    await uploadAs("user-42", "one.png");
+    const html = await (await openGallery("user-42")).text();
+
+    expect(html).toMatch(/data-tile[\s\S]*?data-id="[\w-]+"/);
+    expect(html).toContain('data-name="one.png"');
+    expect(html).toMatch(/data-size="\d+"/);
+    expect(html).toMatch(/data-created="\d+"/);
+    expect(html).toMatch(/data-expires="\d+"/);
+    expect(html).toContain("data-expiry");
+  });
+
+  it("makes each tile keyboard-focusable for arrow-key navigation", async () => {
+    await uploadAs("user-42", "one.png");
+    const html = await (await openGallery("user-42")).text();
+
+    expect(html).toMatch(/<figure class="tile panel" tabindex="0"/);
+  });
+
+  it("loads the gallery script as a module and serves its filter/sort helpers", async () => {
+    const html = await (await openGallery("user-42")).text();
+    expect(html).toContain('<script type="module" src="/assets/gallery.js">');
+
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/assets/gallery-filters.js"),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/javascript");
+    expect(await res.text()).toContain("export function matchesFilter");
+  });
+
+  it("includes a hidden no-match message for a filtered-to-nothing state", async () => {
+    await uploadAs("user-42", "one.png");
+    const html = await (await openGallery("user-42")).text();
+    expect(html).toMatch(/<p class="sheet-empty" id="sheetEmpty" hidden>/);
+  });
+});
+
 describe("deleting a file", () => {
   /** The page carries a token because its session is spent on render. */
   async function galleryWithToken(

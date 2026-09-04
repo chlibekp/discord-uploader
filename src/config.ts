@@ -9,6 +9,10 @@ export interface Config {
   maxTotalBytes: number;
   /** Ceiling on the combined size of one uploader's live files. */
   maxUserBytes: number;
+  /** Max /upload and /gallery sessions one user may mint per rolling hour. 0 disables. */
+  rateLimitSessionsPerHour: number;
+  /** Max files one user may upload per rolling hour. 0 disables. */
+  rateLimitUploadsPerHour: number;
   port: number;
 }
 
@@ -17,6 +21,8 @@ const DEFAULTS = {
   MAX_FILE_BYTES: "2147483648",
   MAX_TOTAL_BYTES: "4831838208",
   MAX_USER_BYTES: "2147483648",
+  RATE_LIMIT_SESSIONS_PER_HOUR: "150",
+  RATE_LIMIT_UPLOADS_PER_HOUR: "30",
   PORT: "3000",
 } as const;
 
@@ -39,6 +45,22 @@ function positiveInt(
   if (!Number.isSafeInteger(value) || value <= 0) {
     throw new ConfigError(
       `Environment variable ${name} must be a positive integer, got: ${raw}`,
+    );
+  }
+  return value;
+}
+
+/** Like `positiveInt`, but 0 is allowed and means "disabled". */
+function nonNegativeInt(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  fallback: string,
+): number {
+  const raw = env[name]?.trim() || fallback;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new ConfigError(
+      `Environment variable ${name} must be a non-negative integer, got: ${raw}`,
     );
   }
   return value;
@@ -73,6 +95,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       DEFAULTS.MAX_TOTAL_BYTES,
     ),
     maxUserBytes: positiveInt(env, "MAX_USER_BYTES", DEFAULTS.MAX_USER_BYTES),
+    rateLimitSessionsPerHour: nonNegativeInt(
+      env,
+      "RATE_LIMIT_SESSIONS_PER_HOUR",
+      DEFAULTS.RATE_LIMIT_SESSIONS_PER_HOUR,
+    ),
+    rateLimitUploadsPerHour: nonNegativeInt(
+      env,
+      "RATE_LIMIT_UPLOADS_PER_HOUR",
+      DEFAULTS.RATE_LIMIT_UPLOADS_PER_HOUR,
+    ),
     port: positiveInt(env, "PORT", DEFAULTS.PORT),
   };
 }
