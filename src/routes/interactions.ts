@@ -3,10 +3,20 @@ import type { AppDeps } from "../app.js";
 import { verifyInteractionSignature } from "../discord/verify.js";
 import { createSession } from "../storage/sessions.js";
 import { collectInfra } from "../infra.js";
-import { brandedEmbed, buildInfraEmbed, progressBar } from "../discord/embeds.js";
+import {
+  brandedEmbed,
+  buildInfraEmbed,
+  progressBar,
+} from "../discord/embeds.js";
 import { ttlValueToMs, describeTtl } from "../ttl.js";
 import { deleteInteractionMessage } from "../discord/followup.js";
-import { deleteRecord, expireDue, getRecord, listUserFiles, userBytes } from "../storage/store.js";
+import {
+  deleteRecord,
+  expireDue,
+  getRecord,
+  listUserFiles,
+  userBytes,
+} from "../storage/store.js";
 
 const PING = 1;
 const APPLICATION_COMMAND = 2;
@@ -101,7 +111,14 @@ export function interactionsRoutes(deps: AppDeps): Hono {
           [
             {
               type: 1,
-              components: [{ type: 2, style: 5, label: "Open support page", url: SUPPORT_URL }],
+              components: [
+                {
+                  type: 2,
+                  style: 5,
+                  label: "Open support page",
+                  url: SUPPORT_URL,
+                },
+              ],
             },
           ],
         ),
@@ -109,14 +126,19 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     }
 
     if (command === "info") {
-      const report = await collectInfra(deps.config.dataDir, deps.config.discordBotToken);
+      const report = await collectInfra(
+        deps.config.dataDir,
+        deps.config.discordBotToken,
+      );
       return c.json(embedReply(buildInfraEmbed(report)));
     }
 
     const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
     const channelId: string | undefined = body.channel_id;
     if (!userId || !channelId) {
-      return c.json(ephemeral("Could not determine who or where you are. Try again."));
+      return c.json(
+        ephemeral("Could not determine who or where you are. Try again."),
+      );
     }
 
     if (command === "stats") {
@@ -157,9 +179,17 @@ export function interactionsRoutes(deps: AppDeps): Hono {
               "\n```",
             fields: [
               { name: "Files", value: String(files.length), inline: true },
-              { name: "Used", value: `${formatBytes(used)} / ${formatBytes(quota)}`, inline: true },
+              {
+                name: "Used",
+                value: `${formatBytes(used)} / ${formatBytes(quota)}`,
+                inline: true,
+              },
               { name: "Oldest", value: day(times[0]!), inline: true },
-              { name: "Newest", value: day(times[times.length - 1]!), inline: true },
+              {
+                name: "Newest",
+                value: day(times[times.length - 1]!),
+                inline: true,
+              },
               {
                 name: "Next auto-delete",
                 value: soonest ? day(soonest) : "none scheduled",
@@ -174,9 +204,10 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     const ttlMs =
       command === "upload"
         ? ttlValueToMs(
-            (body.data?.options as { name: string; value: string }[] | undefined)?.find(
-              (o) => o.name === "ttl",
-            )?.value,
+            (
+              body.data?.options as
+                { name: string; value: string }[] | undefined
+            )?.find((o) => o.name === "ttl")?.value,
           )
         : 0;
 
@@ -195,14 +226,18 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       return c.json({ error: "Session store unavailable" }, 503);
     }
 
-    const minutes = Math.floor((session.expiresAt - session.createdAt) / 60_000);
+    const minutes = Math.floor(
+      (session.expiresAt - session.createdAt) / 60_000,
+    );
     const gallery = session.kind === "gallery";
     const url = `${deps.config.publicUrl}/${gallery ? "g" : "u"}/${session.sid}`;
 
     return c.json(
       embedReply(
         brandedEmbed({
-          title: gallery ? "🖼 ImageUploader — Gallery" : "📥 ImageUploader — Upload",
+          title: gallery
+            ? "🖼 ImageUploader — Gallery"
+            : "📥 ImageUploader — Upload",
           description: gallery
             ? `Your uploads are behind the link below. ` +
               `It opens once and expires in **${minutes} minutes**.`
@@ -231,7 +266,10 @@ export function interactionsRoutes(deps: AppDeps): Hono {
 }
 
 function ephemeral(content: string) {
-  return { type: CHANNEL_MESSAGE_WITH_SOURCE, data: { flags: EPHEMERAL, content } };
+  return {
+    type: CHANNEL_MESSAGE_WITH_SOURCE,
+    data: { flags: EPHEMERAL, content },
+  };
 }
 
 function embedReply(embed: unknown, components?: unknown[]) {
@@ -266,9 +304,11 @@ async function handleComponent(deps: AppDeps, body: any) {
   // A component interaction must be acknowledged within 3 seconds. Deleting the
   // file and calling Discord back to remove the message both take longer than
   // that budget allows, so they run after the ack rather than before it.
-  void finishButtonDelete(deps, body.token, id, record !== null).catch((err) => {
-    console.error(`Delete-button cleanup failed for ${id}:`, err);
-  });
+  void finishButtonDelete(deps, body.token, id, record !== null).catch(
+    (err) => {
+      console.error(`Delete-button cleanup failed for ${id}:`, err);
+    },
+  );
 
   return { type: DEFERRED_UPDATE_MESSAGE };
 }

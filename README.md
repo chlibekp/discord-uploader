@@ -76,10 +76,10 @@ upload — no ffmpeg on the server.
 In the [Developer Portal](https://discord.com/developers/applications):
 
 1. Create an application. Copy the **Application ID** and **Public Key** from
-   *General Information*.
-2. Under *Bot*, copy the **token**. It is only used to register the command.
-3. Under *Installation*, enable both **User Install** and **Guild Install**.
-4. Under *General Information*, set **Interactions Endpoint URL** to
+   _General Information_.
+2. Under _Bot_, copy the **token**. It is only used to register the command.
+3. Under _Installation_, enable both **User Install** and **Guild Install**.
+4. Under _General Information_, set **Interactions Endpoint URL** to
    `https://<your-domain>/interactions`. Discord verifies it with a signed PING, so
    deploy first, then save this.
 
@@ -103,18 +103,18 @@ would have a different disk and 404 on files the first one wrote. `railway.json`
 
 ## Environment
 
-| Variable | Required | Default | Notes |
-| --- | --- | --- | --- |
-| `DISCORD_APP_ID` | yes | | Application ID |
-| `DISCORD_PUBLIC_KEY` | yes | | 64 hex chars; verifies interaction signatures |
-| `DISCORD_BOT_TOKEN` | yes | | Registration only |
-| `PUBLIC_URL` | yes | | No trailing slash |
-| `REDIS_URL` | yes | | From the Redis plugin |
-| `DATA_DIR` | no | `/data` | Volume mount path |
-| `MAX_FILE_BYTES` | no | `2147483648` | 2 GB per file |
-| `MAX_TOTAL_BYTES` | no | `4831838208` | 4.5 GB, ~10% under a 5 GB volume |
-| `MAX_USER_BYTES` | no | `2147483648` | 2 GB cap on one uploader's live files |
-| `PORT` | no | `3000` | Set by Railway |
+| Variable             | Required | Default      | Notes                                         |
+| -------------------- | -------- | ------------ | --------------------------------------------- |
+| `DISCORD_APP_ID`     | yes      |              | Application ID                                |
+| `DISCORD_PUBLIC_KEY` | yes      |              | 64 hex chars; verifies interaction signatures |
+| `DISCORD_BOT_TOKEN`  | yes      |              | Registration only                             |
+| `PUBLIC_URL`         | yes      |              | No trailing slash                             |
+| `REDIS_URL`          | yes      |              | From the Redis plugin                         |
+| `DATA_DIR`           | no       | `/data`      | Volume mount path                             |
+| `MAX_FILE_BYTES`     | no       | `2147483648` | 2 GB per file                                 |
+| `MAX_TOTAL_BYTES`    | no       | `4831838208` | 4.5 GB, ~10% under a 5 GB volume              |
+| `MAX_USER_BYTES`     | no       | `2147483648` | 2 GB cap on one uploader's live files         |
+| `PORT`               | no       | `3000`       | Set by Railway                                |
 
 ## Storage and eviction
 
@@ -151,17 +151,17 @@ then served as script from this origin.
 
 ## Routes
 
-| Route | Purpose |
-| --- | --- |
-| `POST /interactions` | Discord webhook |
-| `GET /u/:sid` | Upload page |
-| `GET /g/:gid` | Gallery page, scoped to the invoker |
-| `DELETE /api/files/:id` | Deletes one of your own uploads |
-| `GET /assets/*` | Stylesheet, scripts and the mascot sprite |
-| `POST /u/:sid/file` | Streaming upload |
-| `GET /f/:id/:name` | Serves the file, with Range support |
-| `GET /v/:id` | OG player page for videos |
-| `GET /healthz` | Railway healthcheck |
+| Route                   | Purpose                                   |
+| ----------------------- | ----------------------------------------- |
+| `POST /interactions`    | Discord webhook                           |
+| `GET /u/:sid`           | Upload page                               |
+| `GET /g/:gid`           | Gallery page, scoped to the invoker       |
+| `DELETE /api/files/:id` | Deletes one of your own uploads           |
+| `GET /assets/*`         | Stylesheet, scripts and the mascot sprite |
+| `POST /u/:sid/file`     | Streaming upload                          |
+| `GET /f/:id/:name`      | Serves the file, with Range support       |
+| `GET /v/:id`            | OG player page for videos                 |
+| `GET /healthz`          | Railway healthcheck                       |
 
 ## Development
 

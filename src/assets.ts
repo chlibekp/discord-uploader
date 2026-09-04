@@ -6,7 +6,11 @@ import { fileURLToPath } from "node:url";
  * `public/` sits one level above both `src/` and `dist/`, so the same relative
  * path resolves under tsx and under the compiled build.
  */
-const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
+const publicDir = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "public",
+);
 
 function readText(name: string): string {
   return readFileSync(path.join(publicDir, name), "utf8");

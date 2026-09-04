@@ -11,7 +11,8 @@ import type { IncomingMessage } from "node:http";
  * exists, so that path converts instead.
  */
 export function requestNodeStream(c: Context): Readable {
-  const incoming = (c.env as { incoming?: IncomingMessage } | undefined)?.incoming;
+  const incoming = (c.env as { incoming?: IncomingMessage } | undefined)
+    ?.incoming;
   if (incoming && typeof incoming.pipe === "function") return incoming;
 
   const body = c.req.raw.body;

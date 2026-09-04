@@ -5,7 +5,14 @@ import path from "node:path";
 import RedisMock from "ioredis-mock";
 import type { Redis } from "ioredis";
 import { PROTECT_WINDOW_MS, reconcile, sweep } from "../src/storage/lru.js";
-import { LRU_KEY, TOTAL_KEY, USER_KEY, fileDir, saveRecord, totalBytes } from "../src/storage/store.js";
+import {
+  LRU_KEY,
+  TOTAL_KEY,
+  USER_KEY,
+  fileDir,
+  saveRecord,
+  totalBytes,
+} from "../src/storage/store.js";
 import { rmSync } from "node:fs";
 import { testConfig } from "./helpers.js";
 import type { Config } from "../src/config.js";
@@ -25,7 +32,11 @@ afterEach(() => {
   rmSync(config.dataDir, { recursive: true, force: true });
 });
 
-async function addFile(id: string, size: number, createdAt: number): Promise<FileRecord> {
+async function addFile(
+  id: string,
+  size: number,
+  createdAt: number,
+): Promise<FileRecord> {
   const record: FileRecord = {
     id,
     name: `${id}.png`,
@@ -39,7 +50,10 @@ async function addFile(id: string, size: number, createdAt: number): Promise<Fil
     channelId: "c1",
   };
   await mkdir(fileDir(config, id), { recursive: true });
-  await writeFile(path.join(fileDir(config, id), record.name), Buffer.alloc(size));
+  await writeFile(
+    path.join(fileDir(config, id), record.name),
+    Buffer.alloc(size),
+  );
   await saveRecord(redis, record);
   await redis.zadd(LRU_KEY, createdAt, id);
   return record;
@@ -136,7 +150,10 @@ describe("reconcile", () => {
 
   it("removes orphan directories with no record", async () => {
     await mkdir(fileDir(config, "orphan"), { recursive: true });
-    await writeFile(path.join(fileDir(config, "orphan"), "x.png"), Buffer.alloc(50));
+    await writeFile(
+      path.join(fileDir(config, "orphan"), "x.png"),
+      Buffer.alloc(50),
+    );
     await reconcile(redis, config);
     expect(existsSync(fileDir(config, "orphan"))).toBe(false);
     expect(await totalBytes(redis)).toBe(0);

@@ -9,8 +9,20 @@ const EBML = Buffer.from([0x1a, 0x45, 0xdf, 0xa3]);
 
 /** ISO base media brands we accept as MP4. */
 const MP4_BRANDS = new Set([
-  "isom", "iso2", "iso4", "iso5", "iso6", "mp41", "mp42", "avc1",
-  "dash", "mmp4", "M4V ", "M4A ", "3gp4", "3gp5",
+  "isom",
+  "iso2",
+  "iso4",
+  "iso5",
+  "iso6",
+  "mp41",
+  "mp42",
+  "avc1",
+  "dash",
+  "mmp4",
+  "M4V ",
+  "M4A ",
+  "3gp4",
+  "3gp5",
 ]);
 
 /**

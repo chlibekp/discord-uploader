@@ -54,7 +54,10 @@ export async function createSession(
   return session;
 }
 
-function hydrate(sid: string, raw: Record<string, string>): UploadSession | null {
+function hydrate(
+  sid: string,
+  raw: Record<string, string>,
+): UploadSession | null {
   if (!raw.interactionToken || !raw.channelId || !raw.userId) return null;
   return {
     sid,
@@ -70,7 +73,10 @@ function hydrate(sid: string, raw: Record<string, string>): UploadSession | null
 }
 
 /** Read-only lookup, used to decide whether to render the upload page. */
-export async function getSession(redis: Redis, sid: string): Promise<UploadSession | null> {
+export async function getSession(
+  redis: Redis,
+  sid: string,
+): Promise<UploadSession | null> {
   const raw = await redis.hgetall(key(sid));
   if (!raw || Object.keys(raw).length === 0) return null;
   if (raw.claimed === "1") return null;
@@ -85,7 +91,10 @@ export async function getSession(redis: Redis, sid: string): Promise<UploadSessi
  * would resurrect it without a TTL, which is why a resurrected key (one with no
  * interactionToken) is deleted and reported missing.
  */
-export async function claimSession(redis: Redis, sid: string): Promise<ClaimResult> {
+export async function claimSession(
+  redis: Redis,
+  sid: string,
+): Promise<ClaimResult> {
   if ((await redis.exists(key(sid))) === 0) return { status: "missing" };
 
   const won = await redis.hsetnx(key(sid), "claimed", "1");
@@ -114,13 +123,19 @@ export const ACTION_TOKEN_TTL_SECONDS = 900;
 
 const actionKey = (token: string) => `act:${token}`;
 
-export async function createActionToken(redis: Redis, userId: string): Promise<string> {
+export async function createActionToken(
+  redis: Redis,
+  userId: string,
+): Promise<string> {
   const token = newId();
   await redis.set(actionKey(token), userId, "EX", ACTION_TOKEN_TTL_SECONDS);
   return token;
 }
 
-export async function readActionToken(redis: Redis, token: string): Promise<string | null> {
+export async function readActionToken(
+  redis: Redis,
+  token: string,
+): Promise<string | null> {
   if (!token) return null;
   return redis.get(actionKey(token));
 }

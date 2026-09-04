@@ -39,7 +39,12 @@ export function verifyInteractionSignature(args: {
 
   try {
     const message = Buffer.concat([Buffer.from(timestamp, "utf8"), rawBody]);
-    return cryptoVerify(null, message, publicKeyFor(publicKey), Buffer.from(signature, "hex"));
+    return cryptoVerify(
+      null,
+      message,
+      publicKeyFor(publicKey),
+      Buffer.from(signature, "hex"),
+    );
   } catch {
     return false;
   }

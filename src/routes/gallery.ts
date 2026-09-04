@@ -3,8 +3,17 @@ import type { AppDeps } from "../app.js";
 import { UPLOAD_PAGE_CSP, assets } from "../assets.js";
 import { fileUrl, watchUrl } from "../discord/followup.js";
 import { expiredShell } from "../pages.js";
-import { claimSession, createActionToken, readActionToken } from "../storage/sessions.js";
-import { deleteRecord, expireDue, getRecord, listUserFiles } from "../storage/store.js";
+import {
+  claimSession,
+  createActionToken,
+  readActionToken,
+} from "../storage/sessions.js";
+import {
+  deleteRecord,
+  expireDue,
+  getRecord,
+  listUserFiles,
+} from "../storage/store.js";
 import type { Config } from "../config.js";
 import type { FileRecord } from "../types.js";
 
@@ -22,7 +31,9 @@ export function galleryRoutes(deps: AppDeps): Hono {
     // A session opened by /upload must not be spendable here, or the wrong page
     // would consume it.
     if (claim.status !== "ok" || claim.session.kind !== "gallery") {
-      return c.html(expiredPage(), 404, { "Content-Security-Policy": UPLOAD_PAGE_CSP });
+      return c.html(expiredPage(), 404, {
+        "Content-Security-Policy": UPLOAD_PAGE_CSP,
+      });
     }
 
     await expireDue(deps.redis, deps.config);
@@ -34,9 +45,22 @@ export function galleryRoutes(deps: AppDeps): Hono {
     const token = await createActionToken(deps.redis, claim.session.userId);
     const html = assets.galleryHtml
       .replace("{{TOKEN}}", token)
-      .replace("{{SUMMARY}}", files.length > 0 ? `${formatBytes(bytes)}, newest first` : "Nothing stored yet")
-      .replace("{{COUNT}}", files.length > 0 ? `${files.length} ${files.length === 1 ? "file" : "files"}` : "")
-      .replace("{{TILES}}", files.length > 0 ? sheet(deps.config, files) : emptyState());
+      .replace(
+        "{{SUMMARY}}",
+        files.length > 0
+          ? `${formatBytes(bytes)}, newest first`
+          : "Nothing stored yet",
+      )
+      .replace(
+        "{{COUNT}}",
+        files.length > 0
+          ? `${files.length} ${files.length === 1 ? "file" : "files"}`
+          : "",
+      )
+      .replace(
+        "{{TILES}}",
+        files.length > 0 ? sheet(deps.config, files) : emptyState(),
+      );
 
     return c.html(html, 200, {
       "Content-Security-Policy": UPLOAD_PAGE_CSP,
@@ -52,12 +76,20 @@ export function galleryRoutes(deps: AppDeps): Hono {
    * than 403, so the endpoint cannot be used to probe which ids exist.
    */
   app.delete("/api/files/:id", async (c) => {
-    const userId = await readActionToken(deps.redis, c.req.header("X-Action-Token") ?? "");
-    if (!userId) return c.json({ error: "This page has expired. Run /gallery again." }, 401);
+    const userId = await readActionToken(
+      deps.redis,
+      c.req.header("X-Action-Token") ?? "",
+    );
+    if (!userId)
+      return c.json(
+        { error: "This page has expired. Run /gallery again." },
+        401,
+      );
 
     const id = c.req.param("id");
     const record = await getRecord(deps.redis, id);
-    if (!record || record.userId !== userId) return c.json({ error: "File not found" }, 404);
+    if (!record || record.userId !== userId)
+      return c.json({ error: "File not found" }, 404);
 
     await deleteRecord(deps.redis, deps.config, id);
     console.log(`Deleted ${id} at the owner's request`);

@@ -18,7 +18,9 @@ export interface Embed {
  * Every command embed shares the blurple colour, the ImageUploader footer and a
  * timestamp, so the whole bot reads as one surface.
  */
-export function brandedEmbed(partial: Omit<Embed, "color" | "footer" | "timestamp">): Embed {
+export function brandedEmbed(
+  partial: Omit<Embed, "color" | "footer" | "timestamp">,
+): Embed {
   return {
     ...partial,
     color: BLURPLE,
@@ -35,7 +37,9 @@ export function progressBar(pct: number): string {
   const clamped = Math.max(0, Math.min(100, pct));
   const filled = Math.round(clamped / 10);
   const bar = "█".repeat(filled) + "░".repeat(10 - filled);
-  return pct >= 100 ? `${bar} ${Math.round(pct)}% ⚠ over quota` : `${bar} ${Math.round(pct)}%`;
+  return pct >= 100
+    ? `${bar} ${Math.round(pct)}% ⚠ over quota`
+    : `${bar} ${Math.round(pct)}%`;
 }
 
 export function buildInfraEmbed(r: InfraReport): Embed {

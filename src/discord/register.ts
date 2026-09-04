@@ -99,10 +99,14 @@ export async function registerCommands(
     });
 
     if (!res.ok) {
-      console.error(`Command registration failed: ${res.status} ${await res.text()}`);
+      console.error(
+        `Command registration failed: ${res.status} ${await res.text()}`,
+      );
       return false;
     }
-    console.log(`Registered global commands: ${COMMANDS.map((c) => `/${c.name}`).join(", ")}`);
+    console.log(
+      `Registered global commands: ${COMMANDS.map((c) => `/${c.name}`).join(", ")}`,
+    );
     return true;
   } catch (err) {
     console.error("Command registration request failed:", err);

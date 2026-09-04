@@ -11,13 +11,22 @@ export function assetRoutes(): Hono {
   const app = new Hono();
 
   app.get("/assets/upload.css", (c) =>
-    c.body(assets.uploadCss, 200, { "Content-Type": "text/css; charset=utf-8", "Cache-Control": NO_CACHE }),
+    c.body(assets.uploadCss, 200, {
+      "Content-Type": "text/css; charset=utf-8",
+      "Cache-Control": NO_CACHE,
+    }),
   );
   app.get("/assets/upload.js", (c) =>
-    c.body(assets.uploadJs, 200, { "Content-Type": SCRIPT, "Cache-Control": NO_CACHE }),
+    c.body(assets.uploadJs, 200, {
+      "Content-Type": SCRIPT,
+      "Cache-Control": NO_CACHE,
+    }),
   );
   app.get("/assets/gallery.js", (c) =>
-    c.body(assets.galleryJs, 200, { "Content-Type": SCRIPT, "Cache-Control": NO_CACHE }),
+    c.body(assets.galleryJs, 200, {
+      "Content-Type": SCRIPT,
+      "Cache-Control": NO_CACHE,
+    }),
   );
 
   for (const [route, body] of [
@@ -25,7 +34,10 @@ export function assetRoutes(): Hono {
     ["/assets/silkscreen-700.woff2", assets.fontBold],
   ] as const) {
     app.get(route, (c) =>
-      c.body(new Uint8Array(body), 200, { "Content-Type": "font/woff2", "Cache-Control": IMMUTABLE }),
+      c.body(new Uint8Array(body), 200, {
+        "Content-Type": "font/woff2",
+        "Cache-Control": IMMUTABLE,
+      }),
     );
   }
 
@@ -35,7 +47,10 @@ export function assetRoutes(): Hono {
     ["/favicon.ico", assets.mascotSmall],
   ] as const) {
     app.get(route, (c) =>
-      c.body(new Uint8Array(body), 200, { "Content-Type": "image/png", "Cache-Control": IMMUTABLE }),
+      c.body(new Uint8Array(body), 200, {
+        "Content-Type": "image/png",
+        "Cache-Control": IMMUTABLE,
+      }),
     );
   }
 

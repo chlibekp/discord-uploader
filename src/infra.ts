@@ -76,7 +76,9 @@ export interface InfraReport {
  * their side. Best-effort: a failed request or missing token yields null and the
  * line is omitted from the report.
  */
-async function collectInstalls(botToken: string | undefined): Promise<string | null> {
+async function collectInstalls(
+  botToken: string | undefined,
+): Promise<string | null> {
   if (!botToken) return null;
   try {
     const res = await fetch("https://discord.com/api/v10/applications/@me", {

@@ -74,10 +74,13 @@ async function runDelete(button) {
   button.textContent = "…";
 
   try {
-    const res = await fetch(`/api/files/${encodeURIComponent(button.dataset.delete)}`, {
-      method: "DELETE",
-      headers: { "X-Action-Token": token },
-    });
+    const res = await fetch(
+      `/api/files/${encodeURIComponent(button.dataset.delete)}`,
+      {
+        method: "DELETE",
+        headers: { "X-Action-Token": token },
+      },
+    );
 
     if (res.status === 204) {
       tile.remove();
@@ -107,7 +110,8 @@ function fail(button, message) {
 function recount() {
   const tiles = document.querySelectorAll(".tile");
   const count = document.querySelector(".count");
-  if (count) count.textContent = `${tiles.length} ${tiles.length === 1 ? "file" : "files"}`;
+  if (count)
+    count.textContent = `${tiles.length} ${tiles.length === 1 ? "file" : "files"}`;
 
   if (tiles.length === 0) {
     const sheet = document.querySelector(".sheet");
