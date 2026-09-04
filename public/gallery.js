@@ -1,6 +1,10 @@
 "use strict";
 
-import { filterRecords, formatRemaining, sortRecords } from "./gallery-filters.js";
+import {
+  filterRecords,
+  formatRemaining,
+  sortRecords,
+} from "./gallery-filters.js";
 
 const token = document.body.dataset.token;
 
@@ -61,7 +65,9 @@ function confirmDelete(button) {
     button.textContent = "Delete?";
     button.classList.add("armed");
     button.dataset.timer = String(setTimeout(() => disarm(button), 4000));
-    announce(`Press delete again to remove ${tileNameFor(button)}. This cannot be undone.`);
+    announce(
+      `Press delete again to remove ${tileNameFor(button)}. This cannot be undone.`,
+    );
     return;
   }
 
@@ -81,7 +87,11 @@ function disarmAll() {
 }
 
 function tileNameFor(button) {
-  return button.dataset.name || button.closest("[data-tile]")?.dataset.name || "this file";
+  return (
+    button.dataset.name ||
+    button.closest("[data-tile]")?.dataset.name ||
+    "this file"
+  );
 }
 
 async function runDelete(button) {
@@ -90,10 +100,13 @@ async function runDelete(button) {
   button.textContent = "…";
 
   try {
-    const res = await fetch(`/api/files/${encodeURIComponent(button.dataset.delete)}`, {
-      method: "DELETE",
-      headers: { "X-Action-Token": token },
-    });
+    const res = await fetch(
+      `/api/files/${encodeURIComponent(button.dataset.delete)}`,
+      {
+        method: "DELETE",
+        headers: { "X-Action-Token": token },
+      },
+    );
 
     if (res.status === 204) {
       const name = tileNameFor(button);
@@ -131,7 +144,8 @@ function announce(message) {
 function recount() {
   const tiles = document.querySelectorAll(".tile");
   const count = document.querySelector(".count");
-  if (count) count.textContent = `${tiles.length} ${tiles.length === 1 ? "file" : "files"}`;
+  if (count)
+    count.textContent = `${tiles.length} ${tiles.length === 1 ? "file" : "files"}`;
 
   if (tiles.length === 0) {
     const main = document.querySelector(".gallery-main");
@@ -189,7 +203,8 @@ function debounce(fn, wait) {
   };
 }
 
-if (filterInput) filterInput.addEventListener("input", debounce(applyFilters, 150));
+if (filterInput)
+  filterInput.addEventListener("input", debounce(applyFilters, 150));
 if (sortSelect) sortSelect.addEventListener("change", applyFilters);
 applyFilters();
 
@@ -198,7 +213,8 @@ applyFilters();
 function tickExpiries() {
   for (const el of document.querySelectorAll("[data-tile]")) {
     const expiry = el.querySelector("[data-expiry]");
-    if (expiry) expiry.textContent = formatRemaining(Number(el.dataset.expires));
+    if (expiry)
+      expiry.textContent = formatRemaining(Number(el.dataset.expires));
   }
 }
 
@@ -208,7 +224,9 @@ setInterval(tickExpiries, 1000);
 // ---------- Keyboard navigation ----------
 
 function visibleTiles() {
-  return Array.from(document.querySelectorAll("[data-tile]")).filter((el) => !el.hidden);
+  return Array.from(document.querySelectorAll("[data-tile]")).filter(
+    (el) => !el.hidden,
+  );
 }
 
 function columnCount() {

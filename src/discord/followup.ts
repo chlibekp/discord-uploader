@@ -18,7 +18,9 @@ export interface FollowupPayload {
 export function deleteButtonRow(record: FileRecord): unknown {
   return {
     type: 1,
-    components: [{ type: 2, style: 4, label: "Delete", custom_id: `del:${record.id}` }],
+    components: [
+      { type: 2, style: 4, label: "Delete", custom_id: `del:${record.id}` },
+    ],
   };
 }
 
@@ -37,7 +39,10 @@ export function watchUrl(config: Config, record: FileRecord): string {
  * own unfurl of the URL, and that unfurl is what produces the inline player.
  * So a video posts a bare link to the OG page instead.
  */
-export function buildFollowupPayload(config: Config, record: FileRecord): FollowupPayload {
+export function buildFollowupPayload(
+  config: Config,
+  record: FileRecord,
+): FollowupPayload {
   if (record.kind === "image") {
     return {
       embeds: [

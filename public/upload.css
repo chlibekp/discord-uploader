@@ -42,16 +42,32 @@
    * outer layer so the notch reads as a drawn border, not a clipped edge.
    */
   --notch: polygon(
-    0 6px, 6px 6px, 6px 0,
-    calc(100% - 6px) 0, calc(100% - 6px) 6px, 100% 6px,
-    100% calc(100% - 6px), calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) 100%,
-    6px 100%, 6px calc(100% - 6px), 0 calc(100% - 6px)
+    0 6px,
+    6px 6px,
+    6px 0,
+    calc(100% - 6px) 0,
+    calc(100% - 6px) 6px,
+    100% 6px,
+    100% calc(100% - 6px),
+    calc(100% - 6px) calc(100% - 6px),
+    calc(100% - 6px) 100%,
+    6px 100%,
+    6px calc(100% - 6px),
+    0 calc(100% - 6px)
   );
   --notch-sm: polygon(
-    0 4px, 4px 4px, 4px 0,
-    calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
-    100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%,
-    4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px)
+    0 4px,
+    4px 4px,
+    4px 0,
+    calc(100% - 4px) 0,
+    calc(100% - 4px) 4px,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    4px calc(100% - 4px),
+    0 calc(100% - 4px)
   );
 }
 
@@ -60,7 +76,8 @@
 .bar-name,
 .badge,
 .button,
-h1, h2,
+h1,
+h2,
 .tile-meta,
 .count {
   font-family: "Silkscreen", ui-monospace, monospace;
@@ -69,24 +86,46 @@ h1, h2,
   font-smooth: never;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 /* Author display rules beat the UA sheet, so [hidden] needs its own rule. */
-[hidden] { display: none !important; }
+[hidden] {
+  display: none !important;
+}
 
-html, body { height: 100%; }
+html,
+body {
+  height: 100%;
+}
 
 body {
   margin: 0;
   background: var(--void);
   color: var(--ink);
-  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font:
+    15px/1.55 ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-h1 { margin: 0; font-size: 20px; font-weight: 700; line-height: 1.4; }
-p { margin: 0; }
-.muted { color: var(--dim); font-size: 13px; }
+h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+p {
+  margin: 0;
+}
+.muted {
+  color: var(--dim);
+  font-size: 13px;
+}
 
 code {
   background: #0a0b14;
@@ -95,7 +134,9 @@ code {
   font-size: 13px;
 }
 
-a { color: var(--cyan); }
+a {
+  color: var(--cyan);
+}
 
 :focus-visible {
   outline: 2px solid var(--cyan);
@@ -125,9 +166,18 @@ a { color: var(--cyan); }
   image-rendering: pixelated;
 }
 
-.bar-title { display: grid; }
-.bar-name { font-size: 16px; font-weight: 700; line-height: 1.5; }
-.bar-sub { font-size: 12px; color: var(--dim); }
+.bar-title {
+  display: grid;
+}
+.bar-name {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.bar-sub {
+  font-size: 12px;
+  color: var(--dim);
+}
 
 .bar-end {
   margin-left: auto;
@@ -138,7 +188,10 @@ a { color: var(--cyan); }
   color: var(--dim);
 }
 
-.count { color: var(--cyan); font-size: 12px; }
+.count {
+  color: var(--cyan);
+  font-size: 12px;
+}
 
 /* ---------- Single-column pages (upload, expired, watch) ---------- */
 
@@ -174,7 +227,10 @@ a { color: var(--cyan); }
   padding: calc(var(--step) * 4);
 }
 
-.card header { display: grid; gap: var(--step); }
+.card header {
+  display: grid;
+  gap: var(--step);
+}
 
 /* ---------- Upload page ---------- */
 
@@ -185,7 +241,9 @@ a { color: var(--cyan); }
   padding: calc(var(--step) * 6) calc(var(--step) * 3);
   border: 2px dashed var(--line);
   cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
+  transition:
+    border-color 0.12s,
+    background 0.12s;
 }
 .drop:hover,
 .drop:focus-visible,
@@ -199,7 +257,10 @@ a { color: var(--cyan); }
   font-size: 12px;
 }
 
-.preview { display: grid; gap: var(--step); }
+.preview {
+  display: grid;
+  gap: var(--step);
+}
 .preview img,
 .preview video {
   width: 100%;
@@ -220,14 +281,25 @@ a { color: var(--cyan); }
 .progress-bar {
   height: 100%;
   width: 0;
-  background:
-    repeating-linear-gradient(90deg, var(--cyan) 0 8px, #2ea9d9 8px 16px);
+  background: repeating-linear-gradient(
+    90deg,
+    var(--cyan) 0 8px,
+    #2ea9d9 8px 16px
+  );
   transition: width 0.12s linear;
 }
 
-.status { font-size: 13px; min-height: 1.2em; overflow-wrap: anywhere; }
-.status.error { color: var(--danger); }
-.status.success { color: var(--gold); }
+.status {
+  font-size: 13px;
+  min-height: 1.2em;
+  overflow-wrap: anywhere;
+}
+.status.error {
+  color: var(--danger);
+}
+.status.success {
+  color: var(--gold);
+}
 
 /* ---------- Buttons ---------- */
 
@@ -246,14 +318,23 @@ a { color: var(--cyan); }
   clip-path: var(--notch);
   filter: drop-shadow(4px 4px 0 #00000066);
   cursor: pointer;
-  transition: background 0.1s, transform 0.06s, filter 0.06s;
+  transition:
+    background 0.1s,
+    transform 0.06s,
+    filter 0.06s;
 }
-.button:hover:not(:disabled) { background: #6b64e6; }
+.button:hover:not(:disabled) {
+  background: #6b64e6;
+}
 .button:active:not(:disabled) {
   transform: translate(4px, 4px);
   filter: none;
 }
-.button:disabled { opacity: 0.35; cursor: not-allowed; filter: none; }
+.button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: none;
+}
 
 .button.small {
   padding: 9px 8px;
@@ -264,8 +345,13 @@ a { color: var(--cyan); }
   clip-path: var(--notch-sm);
   filter: drop-shadow(3px 3px 0 #00000066);
 }
-.button.small:hover { background: #2f3462; }
-.button.small:active { transform: translate(3px, 3px); filter: none; }
+.button.small:hover {
+  background: #2f3462;
+}
+.button.small:active {
+  transform: translate(3px, 3px);
+  filter: none;
+}
 
 /* ---------- Gallery: toolbar ---------- */
 
@@ -292,7 +378,9 @@ a { color: var(--cyan); }
   padding: 8px 10px;
   min-width: 0;
 }
-.toolbar-input { flex: 1 1 200px; }
+.toolbar-input {
+  flex: 1 1 200px;
+}
 .toolbar-input:focus-visible,
 .toolbar-select:focus-visible {
   outline: 2px solid var(--cyan);
@@ -344,7 +432,9 @@ a { color: var(--cyan); }
   min-width: 0;
   transition: background 0.1s;
 }
-.tile:hover { background: var(--cyan); }
+.tile:hover {
+  background: var(--cyan);
+}
 
 /*
  * The panel's notch clip-path crops a default outline, so the focus ring is
@@ -371,10 +461,24 @@ a { color: var(--cyan); }
    */
   background-color: #0a0b14;
   background-image:
-    linear-gradient(45deg, #14162a 25%, transparent 25%, transparent 75%, #14162a 75%),
-    linear-gradient(45deg, #14162a 25%, transparent 25%, transparent 75%, #14162a 75%);
+    linear-gradient(
+      45deg,
+      #14162a 25%,
+      transparent 25%,
+      transparent 75%,
+      #14162a 75%
+    ),
+    linear-gradient(
+      45deg,
+      #14162a 25%,
+      transparent 25%,
+      transparent 75%,
+      #14162a 75%
+    );
   background-size: 16px 16px;
-  background-position: 0 0, 8px 8px;
+  background-position:
+    0 0,
+    8px 8px;
 }
 
 .shot img,
@@ -423,22 +527,42 @@ a { color: var(--cyan); }
   color: var(--dim);
 }
 
-.tile-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.tile-actions > * { flex: 1 1 auto; min-width: 0; }
+.tile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tile-actions > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 
 .tile a.button.small {
   text-decoration: none;
   text-align: center;
 }
 
-.copied { background: var(--gold) !important; color: var(--void) !important; }
+.copied {
+  background: var(--gold) !important;
+  color: var(--void) !important;
+}
 
-.button.small.danger:hover { background: #5a2230; color: #ffb3bc; }
+.button.small.danger:hover {
+  background: #5a2230;
+  color: #ffb3bc;
+}
 /* Armed: one more click deletes, so it stops looking like the others. */
-.button.small.armed { background: var(--danger); color: #fff; }
-.button.small.armed:hover { background: #ff5d6c; }
+.button.small.armed {
+  background: var(--danger);
+  color: #fff;
+}
+.button.small.armed:hover {
+  background: #ff5d6c;
+}
 
-.sheet-note.error { color: var(--danger); }
+.sheet-note.error {
+  color: var(--danger);
+}
 
 .copy-fallback {
   grid-column: 1 / -1;
@@ -476,8 +600,14 @@ a { color: var(--cyan); }
   image-rendering: pixelated;
 }
 
-.empty h2 { margin: var(--step) 0 0; font-size: 16px; line-height: 1.5; }
-.empty p { max-width: 42ch; }
+.empty h2 {
+  margin: var(--step) 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.empty p {
+  max-width: 42ch;
+}
 
 /* ---------- Watch page ---------- */
 
@@ -494,12 +624,24 @@ a { color: var(--cyan); }
 }
 
 @media (max-width: 480px) {
-  .sheet { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--step); }
-  .bar-sub { display: none; }
-  .mark { width: 40px; height: 40px; }
-  .card > .card-in { padding: calc(var(--step) * 3); }
+  .sheet {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--step);
+  }
+  .bar-sub {
+    display: none;
+  }
+  .mark {
+    width: 40px;
+    height: 40px;
+  }
+  .card > .card-in {
+    padding: calc(var(--step) * 3);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; }
+  * {
+    transition: none !important;
+  }
 }

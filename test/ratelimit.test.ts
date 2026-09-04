@@ -25,12 +25,15 @@ function post(sid: string, part: ReturnType<typeof multipart>): Request {
 }
 
 function imagePart(content = fixtures.png(), filename = "photo.png") {
-  return multipart({ width: "800", height: "600" }, {
-    field: "file",
-    filename,
-    contentType: "image/png",
-    content,
-  });
+  return multipart(
+    { width: "800", height: "600" },
+    {
+      field: "file",
+      filename,
+      contentType: "image/png",
+      content,
+    },
+  );
 }
 
 async function startSession(app: Harness["app"]): Promise<string> {
@@ -67,7 +70,13 @@ describe("checkRateLimit", () => {
     const t1 = t0 + 2 * 60 * 1000; // into the next hour bucket
 
     await checkRateLimit(h.deps.redis, "test", "u2", 1, t0);
-    const stillInWindow = await checkRateLimit(h.deps.redis, "test", "u2", 1, t0);
+    const stillInWindow = await checkRateLimit(
+      h.deps.redis,
+      "test",
+      "u2",
+      1,
+      t0,
+    );
     expect(stillInWindow.allowed).toBe(false);
 
     const afterReset = await checkRateLimit(h.deps.redis, "test", "u2", 1, t1);
@@ -124,9 +133,11 @@ describe("session rate limiting on /interactions", () => {
     await h.app.fetch(interactionRequest(uploadCommand()));
     await h.app.fetch(interactionRequest(uploadCommand()));
 
-    const res = await h.app.fetch(interactionRequest(uploadCommand({ data: { name: "stats", type: 1 } })));
+    const res = await h.app.fetch(
+      interactionRequest(uploadCommand({ data: { name: "stats", type: 1 } })),
+    );
     const body = await res.json();
-    expect(body.data.content).not.toMatch(/too quickly/i);
+    expect(body.data.embeds[0].title).toContain("Your storage");
   });
 });
 
@@ -141,7 +152,9 @@ describe("upload rate limiting on POST /u/:sid/file", () => {
     expect(okRes.status).toBe(200);
 
     const sidBlocked = await startSession(h.app);
-    const res = await h.app.fetch(post(sidBlocked, imagePart(fixtures.png(), "other.png")));
+    const res = await h.app.fetch(
+      post(sidBlocked, imagePart(fixtures.png(), "other.png")),
+    );
     const body = await res.json();
 
     expect(res.status).toBe(429);
@@ -154,7 +167,9 @@ describe("upload rate limiting on POST /u/:sid/file", () => {
     await h.app.fetch(post(sidOk, imagePart()));
 
     const sid = await startSession(h.app);
-    const blocked = await h.app.fetch(post(sid, imagePart(fixtures.png(), "other.png")));
+    const blocked = await h.app.fetch(
+      post(sid, imagePart(fixtures.png(), "other.png")),
+    );
     expect(blocked.status).toBe(429);
 
     const session = await h.deps.redis.hgetall(`sess:${sid}`);
@@ -165,11 +180,18 @@ describe("upload rate limiting on POST /u/:sid/file", () => {
     const sidA = await startSession(h.app);
     await h.app.fetch(post(sidA, imagePart()));
 
-    const otherRes = await h.app.fetch(interactionRequest(uploadCommand({ member: { user: { id: "someone-else" } } })));
+    const otherRes = await h.app.fetch(
+      interactionRequest(
+        uploadCommand({ member: { user: { id: "someone-else" } } }),
+      ),
+    );
     const otherBody = await otherRes.json();
-    const sidB: string = otherBody.data.components[0].components[0].url.split("/u/")[1];
+    const sidB: string =
+      otherBody.data.components[0].components[0].url.split("/u/")[1];
 
-    const res = await h.app.fetch(post(sidB, imagePart(fixtures.png(), "other.png")));
+    const res = await h.app.fetch(
+      post(sidB, imagePart(fixtures.png(), "other.png")),
+    );
     expect(res.status).toBe(200);
   });
 });
@@ -223,11 +245,16 @@ describe("per-user quota is reclaimed on delete", () => {
     const uploadBody = await uploadRes.json();
     const id = new URL(uploadBody.fileUrl).pathname.split("/")[2];
 
-    const galleryRes = await h.app.fetch(interactionRequest(uploadCommand({ data: { name: "gallery", type: 1 } })));
+    const galleryRes = await h.app.fetch(
+      interactionRequest(uploadCommand({ data: { name: "gallery", type: 1 } })),
+    );
     const galleryBody = await galleryRes.json();
-    const gid: string = galleryBody.data.components[0].components[0].url.split("/g/")[1];
+    const gid: string =
+      galleryBody.data.components[0].components[0].url.split("/g/")[1];
 
-    const page = await h.app.fetch(new Request(`https://uploader.test/g/${gid}`));
+    const page = await h.app.fetch(
+      new Request(`https://uploader.test/g/${gid}`),
+    );
     const html = await page.text();
     const token = html.match(/data-token="([^"]+)"/)?.[1];
 

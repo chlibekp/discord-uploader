@@ -1,46 +1,65 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Upload</title>
-<link rel="icon" href="/assets/mascot-small.png" type="image/png">
-<link rel="stylesheet" href="/assets/upload.css">
-</head>
-<body data-sid="{{SID}}"
-      data-expires-at="{{EXPIRES_AT}}"
-      data-max-bytes="{{MAX_FILE_BYTES}}">
-<header class="bar">
-  <img class="mark" src="/assets/mascot-small.png" alt="" width="48" height="48">
-  <div class="bar-title">
-    <span class="bar-name">Upload</span>
-    <span class="bar-sub">Images and videos</span>
-  </div>
-  <div class="bar-end">Expires in <span id="countdown" class="count">--:--</span></div>
-</header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Upload</title>
+    <link rel="icon" href="/assets/mascot-small.png" type="image/png" />
+    <link rel="stylesheet" href="/assets/upload.css" />
+  </head>
+  <body
+    data-sid="{{SID}}"
+    data-expires-at="{{EXPIRES_AT}}"
+    data-max-bytes="{{MAX_FILE_BYTES}}"
+  >
+    <header class="bar">
+      <img
+        class="mark"
+        src="/assets/mascot-small.png"
+        alt=""
+        width="48"
+        height="48"
+      />
+      <div class="bar-title">
+        <span class="bar-name">Upload</span>
+        <span class="bar-sub">Images and videos</span>
+      </div>
+      <div class="bar-end">
+        Expires in <span id="countdown" class="count">--:--</span>
+      </div>
+    </header>
 
-<main class="centered">
-<div class="card panel"><div class="card-in">
-  <label id="drop" class="drop" for="picker" tabindex="0">
-    <span class="drop-title">Drop a file here</span>
-    <span class="muted">or click to choose</span>
-    <input id="picker" type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/avif,video/mp4,video/webm,video/quicktime" hidden>
-  </label>
+    <main class="centered">
+      <div class="card panel">
+        <div class="card-in">
+          <label id="drop" class="drop" for="picker" tabindex="0">
+            <span class="drop-title">Drop a file here</span>
+            <span class="muted">or click to choose</span>
+            <input
+              id="picker"
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
+              hidden
+            />
+          </label>
 
-  <section id="preview" class="preview" hidden>
-    <div id="preview-slot"></div>
-    <p id="filename" class="muted"></p>
-  </section>
+          <section id="preview" class="preview" hidden>
+            <div id="preview-slot"></div>
+            <p id="filename" class="muted"></p>
+          </section>
 
-  <div id="progress-wrap" class="progress" hidden>
-    <div id="progress-bar" class="progress-bar"></div>
-  </div>
+          <div id="progress-wrap" class="progress" hidden>
+            <div id="progress-bar" class="progress-bar"></div>
+          </div>
 
-  <p id="status" class="status" role="status"></p>
+          <p id="status" class="status" role="status"></p>
 
-  <button id="send" class="button" type="button" disabled>Upload</button>
-</div></div>
-</main>
-<script src="/assets/upload.js"></script>
-</body>
+          <button id="send" class="button" type="button" disabled>
+            Upload
+          </button>
+        </div>
+      </div>
+    </main>
+    <script src="/assets/upload.js"></script>
+  </body>
 </html>

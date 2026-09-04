@@ -41,7 +41,12 @@ describe("verifyInteractionSignature", () => {
 
   it("rejects missing headers", () => {
     expect(
-      verifyInteractionSignature({ publicKey: publicKeyHex, signature: null, timestamp, rawBody: body }),
+      verifyInteractionSignature({
+        publicKey: publicKeyHex,
+        signature: null,
+        timestamp,
+        rawBody: body,
+      }),
     ).toBe(false);
     expect(
       verifyInteractionSignature({

@@ -46,7 +46,10 @@ export function fileRoutes(deps: AppDeps): Hono {
     const range = parseRange(c.req.header("range"), size);
 
     if (range.type === "unsatisfiable") {
-      return c.body(null, 416, { ...headers, "Content-Range": `bytes */${size}` });
+      return c.body(null, 416, {
+        ...headers,
+        "Content-Range": `bytes */${size}`,
+      });
     }
 
     if (range.type === "ok") {
@@ -57,7 +60,11 @@ export function fileRoutes(deps: AppDeps): Hono {
         "Content-Length": String(length),
       };
       if (c.req.method === "HEAD") return c.body(null, 206, partial);
-      return c.body(toWeb(createReadStream(target, { start: range.start, end: range.end })), 206, partial);
+      return c.body(
+        toWeb(createReadStream(target, { start: range.start, end: range.end })),
+        206,
+        partial,
+      );
     }
 
     const full = { ...headers, "Content-Length": String(size) };
@@ -74,7 +81,8 @@ export function fileRoutes(deps: AppDeps): Hono {
     const record = await getRecord(deps.redis, id);
     if (!record) return c.text("Not found", 404);
 
-    if (record.kind === "image") return c.redirect(fileUrl(deps.config, record), 302);
+    if (record.kind === "image")
+      return c.redirect(fileUrl(deps.config, record), 302);
 
     return c.html(watchPage(fileUrl(deps.config, record), record), 200, {
       "Cache-Control": "public, max-age=3600",

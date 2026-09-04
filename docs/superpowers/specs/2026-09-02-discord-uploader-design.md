@@ -25,14 +25,14 @@ into the channel the command was run in.
 
 Hosted on Railway as one service plus two attached resources.
 
-| Piece | Choice | Reason |
-| --- | --- | --- |
-| Runtime | Node 22, TypeScript, ESM | Current LTS; native `fetch`, `node:stream/promises`. |
-| HTTP | Hono + `@hono/node-server` | Small, Web-standard `Request`/`Response`, easy to test via `app.fetch()`. |
-| Sessions | Railway Redis (`ioredis`) | TTL keys and atomic single-use claim, which is what an upload session needs. |
-| Files | Railway Volume at `/data` | Persistent across deploys. |
-| Tests | vitest | Fast, ESM-native. |
-| Package manager | pnpm | |
+| Piece           | Choice                     | Reason                                                                       |
+| --------------- | -------------------------- | ---------------------------------------------------------------------------- |
+| Runtime         | Node 22, TypeScript, ESM   | Current LTS; native `fetch`, `node:stream/promises`.                         |
+| HTTP            | Hono + `@hono/node-server` | Small, Web-standard `Request`/`Response`, easy to test via `app.fetch()`.    |
+| Sessions        | Railway Redis (`ioredis`)  | TTL keys and atomic single-use claim, which is what an upload session needs. |
+| Files           | Railway Volume at `/data`  | Persistent across deploys.                                                   |
+| Tests           | vitest                     | Fast, ESM-native.                                                            |
+| Package manager | pnpm                       |                                                                              |
 
 **Single replica is a hard constraint.** A Railway Volume attaches to exactly one
 service instance. Two replicas would each see a different disk, and a file written by
@@ -41,16 +41,16 @@ one would 404 from the other. The Railway service is configured with
 
 ### Environment variables
 
-| Name | Example | Notes |
-| --- | --- | --- |
-| `DISCORD_APP_ID` | `123...` | Application id. |
-| `DISCORD_PUBLIC_KEY` | hex | Ed25519 key for interaction signature verification. |
-| `DISCORD_BOT_TOKEN` | `Bot ...` | Used **only** for command registration. |
-| `PUBLIC_URL` | `https://x.up.railway.app` | No trailing slash. Used to build every user-facing link. |
-| `REDIS_URL` | `redis://...` | From the Railway Redis plugin. |
-| `DATA_DIR` | `/data` | Volume mount path. |
-| `MAX_FILE_BYTES` | `2147483648` | 2 GB per file. |
-| `MAX_TOTAL_BYTES` | `4831838208` | 4.5 GB, ~10% under a 5 GB volume. |
+| Name                 | Example                    | Notes                                                    |
+| -------------------- | -------------------------- | -------------------------------------------------------- |
+| `DISCORD_APP_ID`     | `123...`                   | Application id.                                          |
+| `DISCORD_PUBLIC_KEY` | hex                        | Ed25519 key for interaction signature verification.      |
+| `DISCORD_BOT_TOKEN`  | `Bot ...`                  | Used **only** for command registration.                  |
+| `PUBLIC_URL`         | `https://x.up.railway.app` | No trailing slash. Used to build every user-facing link. |
+| `REDIS_URL`          | `redis://...`              | From the Railway Redis plugin.                           |
+| `DATA_DIR`           | `/data`                    | Volume mount path.                                       |
+| `MAX_FILE_BYTES`     | `2147483648`               | 2 GB per file.                                           |
+| `MAX_TOTAL_BYTES`    | `4831838208`               | 4.5 GB, ~10% under a 5 GB volume.                        |
 
 All are required at boot except `DATA_DIR`, `MAX_FILE_BYTES`, and `MAX_TOTAL_BYTES`,
 which have the defaults above. Startup validates the set and exits non-zero on a
@@ -192,16 +192,16 @@ double-upload race the claim exists to close.
 
 #### Accepted types
 
-| Sniffed type | Ext | Kind |
-| --- | --- | --- |
-| `image/png` | png | image |
-| `image/jpeg` | jpg | image |
-| `image/gif` | gif | image |
-| `image/webp` | webp | image |
-| `image/avif` | avif | image |
-| `video/mp4` | mp4 | video |
-| `video/webm` | webm | video |
-| `video/quicktime` | mov | video |
+| Sniffed type      | Ext  | Kind  |
+| ----------------- | ---- | ----- |
+| `image/png`       | png  | image |
+| `image/jpeg`      | jpg  | image |
+| `image/gif`       | gif  | image |
+| `image/webp`      | webp | image |
+| `image/avif`      | avif | image |
+| `video/mp4`       | mp4  | video |
+| `video/webm`      | webm | video |
+| `video/quicktime` | mov  | video |
 
 Detection is by leading bytes: PNG signature; JPEG `FF D8 FF`; GIF `GIF87a`/`GIF89a`;
 RIFF container with `WEBP` at offset 8; ISO-BMFF `ftyp` at offset 4 with a brand
@@ -216,7 +216,7 @@ Serves a stored file.
   ever joined into a path from user input — the path comes from the Redis record.
 - Sets `Content-Type` from the stored sniffed type, `Content-Disposition: inline`,
   `Cache-Control: public, max-age=31536000, immutable`, `X-Content-Type-Options:
-  nosniff`, and `Accept-Ranges: bytes`.
+nosniff`, and `Accept-Ranges: bytes`.
 - Honours a single-range `Range` header with `206` and a correct `Content-Range`;
   unsatisfiable ranges get `416`. Range support is required for video seeking in the
   Discord player.
@@ -229,14 +229,14 @@ The OG landing page for videos, and the URL the bot posts for a video upload. It
 returns a minimal HTML document carrying:
 
 ```html
-<meta property="og:type"            content="video.other">
-<meta property="og:video"           content="{PUBLIC_URL}/f/{id}/{name}">
-<meta property="og:video:secure_url" content="{PUBLIC_URL}/f/{id}/{name}">
-<meta property="og:video:type"      content="{mime}">
-<meta property="og:video:width"     content="{width}">
-<meta property="og:video:height"    content="{height}">
-<meta name="twitter:card"           content="player">
-<meta name="twitter:player:stream"  content="{PUBLIC_URL}/f/{id}/{name}">
+<meta property="og:type" content="video.other" />
+<meta property="og:video" content="{PUBLIC_URL}/f/{id}/{name}" />
+<meta property="og:video:secure_url" content="{PUBLIC_URL}/f/{id}/{name}" />
+<meta property="og:video:type" content="{mime}" />
+<meta property="og:video:width" content="{width}" />
+<meta property="og:video:height" content="{height}" />
+<meta name="twitter:card" content="player" />
+<meta name="twitter:player:stream" content="{PUBLIC_URL}/f/{id}/{name}" />
 ```
 
 The visible body is a `<video controls>` pointing at the same file, so a human opening
@@ -258,10 +258,15 @@ the token in the path is the credential.
 **Image:**
 
 ```json
-{ "embeds": [{
-    "description": "<@{userId}> uploaded an image",
-    "image": { "url": "{PUBLIC_URL}/f/{id}/{name}" },
-    "color": 5793266 }] }
+{
+  "embeds": [
+    {
+      "description": "<@{userId}> uploaded an image",
+      "image": { "url": "{PUBLIC_URL}/f/{id}/{name}" },
+      "color": 5793266
+    }
+  ]
+}
 ```
 
 **Video:** a plain `content` of `` `<@{userId}> uploaded a video` `` followed by the
@@ -313,11 +318,15 @@ Authorization: Bot {DISCORD_BOT_TOKEN}
 ```
 
 ```json
-[{ "name": "upload",
-   "description": "Upload an image or video",
-   "type": 1,
-   "integration_types": [0, 1],
-   "contexts": [0, 1, 2] }]
+[
+  {
+    "name": "upload",
+    "description": "Upload an image or video",
+    "type": 1,
+    "integration_types": [0, 1],
+    "contexts": [0, 1, 2]
+  }
+]
 ```
 
 `integration_types: [0, 1]` = guild install and user install. `contexts: [0, 1, 2]` =
@@ -332,18 +341,18 @@ changes.
 
 ## Error handling
 
-| Condition | Response |
-| --- | --- |
-| Bad/missing interaction signature | `401`, empty body |
-| Unknown interaction type | `400` |
-| Session missing or expired | `404` page or JSON |
-| Session already claimed | `409` |
-| `Content-Length` or streamed bytes over cap | `413`, partial file removed |
-| Disallowed file type | `415`, partial file removed |
-| Redis unreachable during `/interactions` | `503` |
-| Redis unreachable at boot | log and exit non-zero; Railway restarts |
-| Followup post fails | file kept, `200` with `posted: false`, page shows the link |
-| Disk write fails mid-upload | `500`, partial file removed |
+| Condition                                   | Response                                                   |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| Bad/missing interaction signature           | `401`, empty body                                          |
+| Unknown interaction type                    | `400`                                                      |
+| Session missing or expired                  | `404` page or JSON                                         |
+| Session already claimed                     | `409`                                                      |
+| `Content-Length` or streamed bytes over cap | `413`, partial file removed                                |
+| Disallowed file type                        | `415`, partial file removed                                |
+| Redis unreachable during `/interactions`    | `503`                                                      |
+| Redis unreachable at boot                   | log and exit non-zero; Railway restarts                    |
+| Followup post fails                         | file kept, `200` with `posted: false`, page shows the link |
+| Disk write fails mid-upload                 | `500`, partial file removed                                |
 
 Nothing in an error response echoes a client-supplied filename or path.
 

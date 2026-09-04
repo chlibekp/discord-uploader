@@ -6,8 +6,14 @@ const expiresAt = Number(body.dataset.expiresAt);
 const maxBytes = Number(body.dataset.maxBytes);
 
 const ACCEPTED = new Set([
-  "image/png", "image/jpeg", "image/gif", "image/webp", "image/avif",
-  "video/mp4", "video/webm", "video/quicktime",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
 ]);
 
 const drop = document.getElementById("drop");
@@ -64,7 +70,9 @@ function readDimensions(file, url) {
     } else {
       element.addEventListener("load", done, { once: true });
     }
-    element.addEventListener("error", () => resolve({ width: 0, height: 0 }), { once: true });
+    element.addEventListener("error", () => resolve({ width: 0, height: 0 }), {
+      once: true,
+    });
     element.src = url;
   });
 }
@@ -77,7 +85,10 @@ async function select(file) {
     return;
   }
   if (file.size > maxBytes) {
-    setStatus(`That file is ${formatBytes(file.size)}. The limit is ${formatBytes(maxBytes)}.`, "error");
+    setStatus(
+      `That file is ${formatBytes(file.size)}. The limit is ${formatBytes(maxBytes)}.`,
+      "error",
+    );
     return;
   }
 
@@ -139,11 +150,16 @@ function upload() {
     if (xhr.status >= 200 && xhr.status < 300) {
       progressBar.style.width = "100%";
       if (payload.posted) {
-        setStatus("Uploaded and posted to Discord. You can close this tab.", "success");
+        setStatus(
+          "Uploaded and posted to Discord. You can close this tab.",
+          "success",
+        );
       } else {
         statusEl.className = "status success";
         statusEl.replaceChildren(
-          document.createTextNode("Uploaded, but the Discord message could not be posted. Link: "),
+          document.createTextNode(
+            "Uploaded, but the Discord message could not be posted. Link: ",
+          ),
         );
         const link = document.createElement("a");
         link.href = payload.url || "#";
@@ -204,7 +220,10 @@ function tick() {
     countdown.textContent = "0:00";
     if (!uploading) {
       sendButton.disabled = true;
-      setStatus("This link has expired. Run /upload in Discord again.", "error");
+      setStatus(
+        "This link has expired. Run /upload in Discord again.",
+        "error",
+      );
     }
     return;
   }

@@ -8,7 +8,12 @@ ${end ? `<div class="bar-end">${end}</div>` : ""}
 </header>`;
 }
 
-export function shell(title: string, bar: string, body: string, head = ""): string {
+export function shell(
+  title: string,
+  bar: string,
+  body: string,
+  head = "",
+): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -27,7 +32,10 @@ ${body}
 }
 
 /** Shown when a single-use link has already been spent or has timed out. */
-export function expiredShell(explanation: string, command: "upload" | "gallery"): string {
+export function expiredShell(
+  explanation: string,
+  command: "upload" | "gallery",
+): string {
   return shell(
     "Link expired",
     brandBar("Link expired", "Single use, 14 minutes"),

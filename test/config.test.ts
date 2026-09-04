@@ -20,28 +20,41 @@ describe("loadConfig", () => {
   });
 
   it("strips a trailing slash from PUBLIC_URL", () => {
-    expect(loadConfig({ ...base, PUBLIC_URL: "https://x.test///" }).publicUrl).toBe("https://x.test");
+    expect(
+      loadConfig({ ...base, PUBLIC_URL: "https://x.test///" }).publicUrl,
+    ).toBe("https://x.test");
   });
 
-  it.each(["DISCORD_APP_ID", "DISCORD_PUBLIC_KEY", "DISCORD_BOT_TOKEN", "PUBLIC_URL", "REDIS_URL"])(
-    "rejects a missing %s",
-    (name) => {
-      const env = { ...base };
-      delete env[name];
-      expect(() => loadConfig(env)).toThrow(ConfigError);
-    },
-  );
+  it.each([
+    "DISCORD_APP_ID",
+    "DISCORD_PUBLIC_KEY",
+    "DISCORD_BOT_TOKEN",
+    "PUBLIC_URL",
+    "REDIS_URL",
+  ])("rejects a missing %s", (name) => {
+    const env = { ...base };
+    delete env[name];
+    expect(() => loadConfig(env)).toThrow(ConfigError);
+  });
 
   it("rejects a PUBLIC_URL without a scheme", () => {
-    expect(() => loadConfig({ ...base, PUBLIC_URL: "uploader.test" })).toThrow(/must start with/);
+    expect(() => loadConfig({ ...base, PUBLIC_URL: "uploader.test" })).toThrow(
+      /must start with/,
+    );
   });
 
   it("rejects a public key that is not 32 hex-encoded bytes", () => {
-    expect(() => loadConfig({ ...base, DISCORD_PUBLIC_KEY: "abcd" })).toThrow(/64 hex/);
+    expect(() => loadConfig({ ...base, DISCORD_PUBLIC_KEY: "abcd" })).toThrow(
+      /64 hex/,
+    );
   });
 
   it("rejects a non-numeric size limit", () => {
-    expect(() => loadConfig({ ...base, MAX_FILE_BYTES: "big" })).toThrow(/positive integer/);
-    expect(() => loadConfig({ ...base, MAX_TOTAL_BYTES: "-5" })).toThrow(/positive integer/);
+    expect(() => loadConfig({ ...base, MAX_FILE_BYTES: "big" })).toThrow(
+      /positive integer/,
+    );
+    expect(() => loadConfig({ ...base, MAX_TOTAL_BYTES: "-5" })).toThrow(
+      /positive integer/,
+    );
   });
 });

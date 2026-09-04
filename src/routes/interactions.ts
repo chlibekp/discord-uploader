@@ -2,10 +2,21 @@ import { Hono } from "hono";
 import type { AppDeps } from "../app.js";
 import { verifyInteractionSignature } from "../discord/verify.js";
 import { createSession } from "../storage/sessions.js";
-import { collectInfra, formatInfra } from "../infra.js";
+import { collectInfra } from "../infra.js";
+import {
+  brandedEmbed,
+  buildInfraEmbed,
+  progressBar,
+} from "../discord/embeds.js";
 import { ttlValueToMs, describeTtl } from "../ttl.js";
 import { deleteInteractionMessage } from "../discord/followup.js";
-import { deleteRecord, expireDue, getRecord, listUserFiles, userBytes } from "../storage/store.js";
+import {
+  deleteRecord,
+  expireDue,
+  getRecord,
+  listUserFiles,
+  userBytes,
+} from "../storage/store.js";
 import { checkRateLimit, minutesUntil } from "../storage/ratelimit.js";
 
 const PING = 1;
@@ -74,44 +85,61 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     }
 
     if (command === "help") {
-      return c.json({
-        type: CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          flags: EPHEMERAL,
-          content:
-            "Available commands:\n/upload - Upload an image or video (optional ttl to auto-delete)\n/gallery - Browse everything you have uploaded\n/stats - Show how much you have stored\n/info - Show infrastructure, resource usage, and install count\n/support - Get a link to the support page\n/help - Show this help message",
-        },
-      });
+      return c.json(
+        embedReply(
+          brandedEmbed({
+            title: "📤 ImageUploader — Commands",
+            description: [
+              "`/upload` — Upload an image or video (optional `ttl` to auto-delete)",
+              "`/gallery` — Browse everything you have uploaded",
+              "`/stats` — Show how much you have stored",
+              "`/info` — Show infrastructure, resource usage, and install count",
+              "`/support` — Get a link to the support page",
+              "`/help` — Show this help message",
+            ].join("\n"),
+          }),
+        ),
+      );
     }
 
     if (command === "support") {
-      return c.json({
-        type: CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          flags: EPHEMERAL,
-          content: `Need help? Visit the support page: ${SUPPORT_URL}`,
-          components: [
+      return c.json(
+        embedReply(
+          brandedEmbed({
+            title: "🆘 ImageUploader — Support",
+            description: `Need a hand? Visit the [support page](${SUPPORT_URL}).`,
+          }),
+          [
             {
               type: 1,
-              components: [{ type: 2, style: 5, label: "Open support page", url: SUPPORT_URL }],
+              components: [
+                {
+                  type: 2,
+                  style: 5,
+                  label: "Open support page",
+                  url: SUPPORT_URL,
+                },
+              ],
             },
           ],
-        },
-      });
+        ),
+      );
     }
 
     if (command === "info") {
-      const report = await collectInfra(deps.config.dataDir, deps.config.discordBotToken);
-      return c.json({
-        type: CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { flags: EPHEMERAL, content: formatInfra(report) },
-      });
+      const report = await collectInfra(
+        deps.config.dataDir,
+        deps.config.discordBotToken,
+      );
+      return c.json(embedReply(buildInfraEmbed(report)));
     }
 
     const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
     const channelId: string | undefined = body.channel_id;
     if (!userId || !channelId) {
-      return c.json(ephemeral("Could not determine who or where you are. Try again."));
+      return c.json(
+        ephemeral("Could not determine who or where you are. Try again."),
+      );
     }
 
     if (command === "stats") {
@@ -119,26 +147,57 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       const files = await listUserFiles(deps.redis, userId, 1000);
       const used = await userBytes(deps.redis, userId);
       const quota = deps.config.maxUserBytes;
+      const pct = quota > 0 ? (used / quota) * 100 : 0;
       if (files.length === 0) {
-        return c.json(ephemeral(`You have nothing stored. Quota: ${formatBytes(quota)}.`));
+        return c.json(
+          embedReply(
+            brandedEmbed({
+              title: "📊 ImageUploader — Your storage",
+              description:
+                `You have nothing stored yet. Quota: **${formatBytes(quota)}**.\n` +
+                "```\n" +
+                progressBar(0) +
+                "\n```",
+            }),
+          ),
+        );
       }
       const times = files.map((f) => f.createdAt).sort((a, b) => a - b);
       const soonest = files
         .filter((f) => f.expiresAt > 0)
         .map((f) => f.expiresAt)
         .sort((a, b) => a - b)[0];
+      const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
       return c.json(
-        ephemeral(
-          [
-            `**Your storage**`,
-            `**Files:** ${files.length}`,
-            `**Used:** ${formatBytes(used)} / ${formatBytes(quota)} (${Math.round((used / quota) * 100)}%)`,
-            `**Oldest:** ${new Date(times[0]!).toISOString().slice(0, 10)}`,
-            `**Newest:** ${new Date(times[times.length - 1]!).toISOString().slice(0, 10)}`,
-            soonest
-              ? `**Next auto-delete:** ${new Date(soonest).toISOString().slice(0, 10)}`
-              : `**Next auto-delete:** none scheduled`,
-          ].join("\n"),
+        embedReply(
+          brandedEmbed({
+            title: "📊 ImageUploader — Your storage",
+            description:
+              `You've used **${formatBytes(used)}** of **${formatBytes(quota)}** ` +
+              `(${Math.round(pct)}%) across **${files.length}** file${files.length === 1 ? "" : "s"}.\n` +
+              "```\n" +
+              progressBar(pct) +
+              "\n```",
+            fields: [
+              { name: "Files", value: String(files.length), inline: true },
+              {
+                name: "Used",
+                value: `${formatBytes(used)} / ${formatBytes(quota)}`,
+                inline: true,
+              },
+              { name: "Oldest", value: day(times[0]!), inline: true },
+              {
+                name: "Newest",
+                value: day(times[times.length - 1]!),
+                inline: true,
+              },
+              {
+                name: "Next auto-delete",
+                value: soonest ? day(soonest) : "none scheduled",
+                inline: true,
+              },
+            ],
+          }),
         ),
       );
     }
@@ -163,9 +222,10 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     const ttlMs =
       command === "upload"
         ? ttlValueToMs(
-            (body.data?.options as { name: string; value: string }[] | undefined)?.find(
-              (o) => o.name === "ttl",
-            )?.value,
+            (
+              body.data?.options as
+                { name: string; value: string }[] | undefined
+            )?.find((o) => o.name === "ttl")?.value,
           )
         : 0;
 
@@ -184,21 +244,26 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       return c.json({ error: "Session store unavailable" }, 503);
     }
 
-    const minutes = Math.floor((session.expiresAt - session.createdAt) / 60_000);
+    const minutes = Math.floor(
+      (session.expiresAt - session.createdAt) / 60_000,
+    );
     const gallery = session.kind === "gallery";
     const url = `${deps.config.publicUrl}/${gallery ? "g" : "u"}/${session.sid}`;
 
-    return c.json({
-      type: CHANNEL_MESSAGE_WITH_SOURCE,
-      data: {
-        flags: EPHEMERAL,
-        content: gallery
-          ? `Your uploads are behind the link below. ` +
-            `It opens once and expires in ${minutes} minutes.`
-          : `Open the link below to upload an image or video. ` +
-            `The link works once and expires in ${minutes} minutes. ` +
-            `Uploaded file ${describeTtl(session.ttlMs)}.`,
-        components: [
+    return c.json(
+      embedReply(
+        brandedEmbed({
+          title: gallery
+            ? "🖼 ImageUploader — Gallery"
+            : "📥 ImageUploader — Upload",
+          description: gallery
+            ? `Your uploads are behind the link below. ` +
+              `It opens once and expires in **${minutes} minutes**.`
+            : `Open the link below to upload an image or video. ` +
+              `The link works once and expires in **${minutes} minutes**. ` +
+              `Uploaded file ${describeTtl(session.ttlMs)}.`,
+        }),
+        [
           {
             type: 1,
             components: [
@@ -211,15 +276,29 @@ export function interactionsRoutes(deps: AppDeps): Hono {
             ],
           },
         ],
-      },
-    });
+      ),
+    );
   });
 
   return app;
 }
 
 function ephemeral(content: string) {
-  return { type: CHANNEL_MESSAGE_WITH_SOURCE, data: { flags: EPHEMERAL, content } };
+  return {
+    type: CHANNEL_MESSAGE_WITH_SOURCE,
+    data: { flags: EPHEMERAL, content },
+  };
+}
+
+function embedReply(embed: unknown, components?: unknown[]) {
+  return {
+    type: CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      flags: EPHEMERAL,
+      embeds: [embed],
+      ...(components ? { components } : {}),
+    },
+  };
 }
 
 /**
@@ -243,9 +322,11 @@ async function handleComponent(deps: AppDeps, body: any) {
   // A component interaction must be acknowledged within 3 seconds. Deleting the
   // file and calling Discord back to remove the message both take longer than
   // that budget allows, so they run after the ack rather than before it.
-  void finishButtonDelete(deps, body.token, id, record !== null).catch((err) => {
-    console.error(`Delete-button cleanup failed for ${id}:`, err);
-  });
+  void finishButtonDelete(deps, body.token, id, record !== null).catch(
+    (err) => {
+      console.error(`Delete-button cleanup failed for ${id}:`, err);
+    },
+  );
 
   return { type: DEFERRED_UPDATE_MESSAGE };
 }
