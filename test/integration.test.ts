@@ -540,7 +540,7 @@ describe("/stats", () => {
     ).json();
     expect(body.data.flags).toBe(64);
     expect(body.data.embeds[0].description).toContain("nothing stored yet");
-    expect(body.data.embeds[0].description).toMatch(/░{10} 0%/);
+    expect(body.data.embeds[0].description).toMatch(/░{20} 0%/);
   });
 
   it("counts the caller's files and bytes after an upload", async () => {
@@ -554,7 +554,7 @@ describe("/stats", () => {
     );
     expect(filesField.value).toBe("1");
     expect(embed.description).toMatch(/across \*\*1\*\* file\./);
-    expect(embed.description).toMatch(/[█░]{10} \d+%/);
+    expect(embed.description).toMatch(/[█░]{20} (<1|\d+)%/);
   });
 });
 
