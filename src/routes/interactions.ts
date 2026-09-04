@@ -6,6 +6,7 @@ import { collectInfra } from "../infra.js";
 import {
   brandedEmbed,
   buildInfraEmbed,
+  formatPct,
   progressBar,
 } from "../discord/embeds.js";
 import { ttlValueToMs, describeTtl } from "../ttl.js";
@@ -174,7 +175,7 @@ export function interactionsRoutes(deps: AppDeps): Hono {
             title: "📊 ImageUploader — Your storage",
             description:
               `You've used **${formatBytes(used)}** of **${formatBytes(quota)}** ` +
-              `(${Math.round(pct)}%) across **${files.length}** file${files.length === 1 ? "" : "s"}.\n` +
+              `(${formatPct(pct)}) across **${files.length}** file${files.length === 1 ? "" : "s"}.\n` +
               "```\n" +
               progressBar(pct) +
               "\n```",
