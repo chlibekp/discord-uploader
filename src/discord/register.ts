@@ -42,7 +42,7 @@ export const HELP_COMMAND = {
 
 export const INFO_COMMAND = {
   name: "info",
-  description: "Show infrastructure, resource usage, and install count",
+  description: "Show infrastructure, resource usage, installs, and bot usage",
   type: 1,
   integration_types: INTEGRATION_TYPES,
   contexts: CONTEXTS,

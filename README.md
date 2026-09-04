@@ -175,6 +175,25 @@ then served as script from this origin.
 | `GET /f/:id/:name`      | Serves the file, with Range support       |
 | `GET /v/:id`            | OG player page for videos                 |
 | `GET /healthz`          | Railway healthcheck                       |
+| `GET /api/stats`        | Public usage counters                     |
+
+### Public usage API
+
+`GET /api/stats` needs no auth and sends `Access-Control-Allow-Origin: *`. It exposes
+aggregates only — never user ids or file data:
+
+```json
+{
+  "commands": 1284,
+  "activeUsers": 213,
+  "byCommand": { "upload": 902, "gallery": 240, "stats": 142 },
+  "generatedAt": "2026-09-04T12:00:00.000Z"
+}
+```
+
+`commands` is every slash command the bot has run; `activeUsers` counts the distinct
+users who have run at least one. Both are lifetime totals held in Redis, and `/info`
+reports the same two figures.
 
 ## Development
 
