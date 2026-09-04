@@ -6,6 +6,7 @@ import { fileRoutes } from "./routes/files.js";
 import { galleryRoutes } from "./routes/gallery.js";
 import { healthRoutes } from "./routes/health.js";
 import { interactionsRoutes } from "./routes/interactions.js";
+import { statsRoutes } from "./routes/stats.js";
 import { uploadRoutes } from "./routes/upload.js";
 
 export interface AppDeps {
@@ -21,6 +22,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route("/", assetRoutes());
   app.route("/", healthRoutes(deps));
   app.route("/", interactionsRoutes(deps));
+  app.route("/", statsRoutes(deps));
   app.route("/", uploadRoutes(deps));
   app.route("/", galleryRoutes(deps));
   app.route("/", fileRoutes(deps));

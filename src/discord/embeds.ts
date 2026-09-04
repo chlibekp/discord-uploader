@@ -1,4 +1,5 @@
 import type { InfraReport } from "../infra.js";
+import type { UsageStats } from "../storage/usage.js";
 
 /** Discord blurple. Matches EMBED_COLOR in followup.ts. */
 export const BLURPLE = 5793266;
@@ -54,7 +55,7 @@ export function progressBar(pct: number): string {
   return `${bar} ${formatPct(pct)}${suffix}`;
 }
 
-export function buildInfraEmbed(r: InfraReport): Embed {
+export function buildInfraEmbed(r: InfraReport, usage?: UsageStats): Embed {
   return brandedEmbed({
     title: "🛠 ImageUploader — Infrastructure",
     fields: [
@@ -66,6 +67,20 @@ export function buildInfraEmbed(r: InfraReport): Embed {
       { name: "Disk", value: r.disk },
       { name: "Uptime", value: r.uptime },
       { name: "Installs", value: r.installs },
+      ...(usage
+        ? [
+            {
+              name: "Commands run",
+              value: usage.commands.toLocaleString("en-US"),
+              inline: true,
+            },
+            {
+              name: "Active users",
+              value: usage.activeUsers.toLocaleString("en-US"),
+              inline: true,
+            },
+          ]
+        : []),
     ],
   });
 }
