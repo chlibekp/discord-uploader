@@ -22,7 +22,10 @@ export function fileDir(config: Config, id: string): string {
   return path.join(config.dataDir, id);
 }
 
-export function filePath(config: Config, record: Pick<FileRecord, "id" | "name">): string {
+export function filePath(
+  config: Config,
+  record: Pick<FileRecord, "id" | "name">,
+): string {
   return path.join(fileDir(config, record.id), record.name);
 }
 
@@ -50,7 +53,10 @@ export async function verifyDataDirWritable(config: Config): Promise<void> {
   }
 }
 
-export async function saveRecord(redis: Redis, record: FileRecord): Promise<void> {
+export async function saveRecord(
+  redis: Redis,
+  record: FileRecord,
+): Promise<void> {
   const tx = redis
     .multi()
     .hset(FILE_KEY(record.id), {
@@ -74,7 +80,10 @@ export async function saveRecord(redis: Redis, record: FileRecord): Promise<void
   await tx.exec();
 }
 
-export async function getRecord(redis: Redis, id: string): Promise<FileRecord | null> {
+export async function getRecord(
+  redis: Redis,
+  id: string,
+): Promise<FileRecord | null> {
   const raw = await redis.hgetall(FILE_KEY(id));
   if (!raw || !raw.name || !raw.mime) return null;
   return {
@@ -99,14 +108,26 @@ export function touchRecord(redis: Redis, id: string): void {
   });
 }
 
-export async function deleteRecord(redis: Redis, config: Config, id: string): Promise<void> {
+export async function deleteRecord(
+  redis: Redis,
+  config: Config,
+  id: string,
+): Promise<void> {
   const record = await getRecord(redis, id);
   await rm(fileDir(config, id), { recursive: true, force: true });
 
-  const tx = redis.multi().del(FILE_KEY(id)).zrem(LRU_KEY, id).zrem(EXPIRY_KEY, id);
+  const tx = redis
+    .multi()
+    .del(FILE_KEY(id))
+    .zrem(LRU_KEY, id)
+    .zrem(EXPIRY_KEY, id);
   // Without the record we cannot know which user index holds this id; the boot
   // reconciliation rebuilds those from scratch and clears any leftovers.
-  if (record) tx.zrem(USER_KEY(record.userId), id).incrby(USER_BYTES_KEY(record.userId), -record.size);
+  if (record)
+    tx.zrem(USER_KEY(record.userId), id).incrby(
+      USER_BYTES_KEY(record.userId),
+      -record.size,
+    );
   await tx.incrby(TOTAL_KEY, record ? -record.size : 0).exec();
 }
 
@@ -115,7 +136,10 @@ export async function userBytes(redis: Redis, userId: string): Promise<number> {
 }
 
 /** One user's file ids, oldest first — the order the per-user quota evicts in. */
-export async function listUserIdsOldestFirst(redis: Redis, userId: string): Promise<string[]> {
+export async function listUserIdsOldestFirst(
+  redis: Redis,
+  userId: string,
+): Promise<string[]> {
   return redis.zrange(USER_KEY(userId), 0, -1);
 }
 
@@ -124,7 +148,11 @@ export async function listUserIdsOldestFirst(redis: Redis, userId: string): Prom
  * expiry set only holds ids with a finite lifetime, and the range query returns
  * immediately when the earliest score is still in the future.
  */
-export async function expireDue(redis: Redis, config: Config, now = Date.now()): Promise<string[]> {
+export async function expireDue(
+  redis: Redis,
+  config: Config,
+  now = Date.now(),
+): Promise<string[]> {
   const due = await redis.zrangebyscore(EXPIRY_KEY, 1, now);
   for (const id of due) {
     await deleteRecord(redis, config, id);

@@ -24,10 +24,17 @@ describe("matchesFilter", () => {
 });
 
 describe("filterRecords", () => {
-  const records = [{ name: "cat.png" }, { name: "dog.png" }, { name: "catfish.mp4" }];
+  const records = [
+    { name: "cat.png" },
+    { name: "dog.png" },
+    { name: "catfish.mp4" },
+  ];
 
   it("keeps only records whose name matches", () => {
-    expect(filterRecords(records, "cat").map((r) => r.name)).toEqual(["cat.png", "catfish.mp4"]);
+    expect(filterRecords(records, "cat").map((r) => r.name)).toEqual([
+      "cat.png",
+      "catfish.mp4",
+    ]);
   });
 
   it("returns everything for an empty query", () => {
@@ -42,23 +49,43 @@ describe("sortRecords", () => {
   const records = [a, b, c];
 
   it("orders newest first", () => {
-    expect(sortRecords(records, "newest").map((r) => r.id)).toEqual(["b", "c", "a"]);
+    expect(sortRecords(records, "newest").map((r) => r.id)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
   });
 
   it("orders oldest first", () => {
-    expect(sortRecords(records, "oldest").map((r) => r.id)).toEqual(["a", "c", "b"]);
+    expect(sortRecords(records, "oldest").map((r) => r.id)).toEqual([
+      "a",
+      "c",
+      "b",
+    ]);
   });
 
   it("orders largest first", () => {
-    expect(sortRecords(records, "largest").map((r) => r.id)).toEqual(["a", "c", "b"]);
+    expect(sortRecords(records, "largest").map((r) => r.id)).toEqual([
+      "a",
+      "c",
+      "b",
+    ]);
   });
 
   it("orders smallest first", () => {
-    expect(sortRecords(records, "smallest").map((r) => r.id)).toEqual(["b", "c", "a"]);
+    expect(sortRecords(records, "smallest").map((r) => r.id)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
   });
 
   it("orders soonest-to-expire first, with never-expiring files last", () => {
-    expect(sortRecords(records, "soonest").map((r) => r.id)).toEqual(["c", "a", "b"]);
+    expect(sortRecords(records, "soonest").map((r) => r.id)).toEqual([
+      "c",
+      "a",
+      "b",
+    ]);
   });
 
   it("does not mutate the input array", () => {
@@ -68,11 +95,19 @@ describe("sortRecords", () => {
   });
 
   it("falls back to newest for an unknown mode", () => {
-    expect(sortRecords(records, "bogus").map((r) => r.id)).toEqual(sortRecords(records, "newest").map((r) => r.id));
+    expect(sortRecords(records, "bogus").map((r) => r.id)).toEqual(
+      sortRecords(records, "newest").map((r) => r.id),
+    );
   });
 
   it("exposes every mode used by the sort control", () => {
-    expect(SORT_MODES).toEqual(["newest", "oldest", "largest", "smallest", "soonest"]);
+    expect(SORT_MODES).toEqual([
+      "newest",
+      "oldest",
+      "largest",
+      "smallest",
+      "soonest",
+    ]);
   });
 });
 

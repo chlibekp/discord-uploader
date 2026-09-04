@@ -26,7 +26,11 @@ export const PROTECT_WINDOW_MS = 60_000;
  *
  * Runs after each successful upload. Returns the ids removed.
  */
-export async function sweep(redis: Redis, config: Config, now = Date.now()): Promise<string[]> {
+export async function sweep(
+  redis: Redis,
+  config: Config,
+  now = Date.now(),
+): Promise<string[]> {
   const evicted: string[] = [];
 
   while ((await totalBytes(redis)) > config.maxTotalBytes) {
@@ -38,7 +42,9 @@ export async function sweep(redis: Redis, config: Config, now = Date.now()): Pro
 
     const record = await getRecord(redis, oldest);
     if (record && now - record.createdAt < PROTECT_WINDOW_MS) {
-      console.warn(`Over the storage cap; oldest file ${oldest} is too new to evict`);
+      console.warn(
+        `Over the storage cap; oldest file ${oldest} is too new to evict`,
+      );
       break;
     }
 
@@ -84,7 +90,8 @@ export async function reconcile(redis: Redis, config: Config): Promise<void> {
   await rebuildUserIndex(redis, [...stillKnown]);
 
   const reaped = await expireDue(redis, config);
-  if (reaped.length > 0) console.log(`Reconciled storage: reaped ${reaped.length} expired files`);
+  if (reaped.length > 0)
+    console.log(`Reconciled storage: reaped ${reaped.length} expired files`);
   console.log(`Reconciled storage: ${stillKnown.size} files, ${total} bytes`);
 }
 
@@ -96,7 +103,10 @@ export async function reconcile(redis: Redis, config: Config): Promise<void> {
  * without a record to read the owner from.
  */
 async function rebuildUserIndex(redis: Redis, ids: string[]): Promise<void> {
-  const stale = [...(await redis.keys(USER_KEY("*"))), ...(await redis.keys(USER_BYTES_KEY("*")))];
+  const stale = [
+    ...(await redis.keys(USER_KEY("*"))),
+    ...(await redis.keys(USER_BYTES_KEY("*"))),
+  ];
   if (stale.length > 0) await redis.del(...stale);
   await redis.del(EXPIRY_KEY);
 
@@ -106,7 +116,8 @@ async function rebuildUserIndex(redis: Redis, ids: string[]): Promise<void> {
     if (!record?.userId) continue;
     await redis.zadd(USER_KEY(record.userId), record.createdAt, id);
     await redis.incrby(USER_BYTES_KEY(record.userId), record.size);
-    if (record.expiresAt > 0) await redis.zadd(EXPIRY_KEY, record.expiresAt, id);
+    if (record.expiresAt > 0)
+      await redis.zadd(EXPIRY_KEY, record.expiresAt, id);
     indexed += 1;
   }
   console.log(`Rebuilt per-user index for ${indexed} files`);

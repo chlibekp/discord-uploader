@@ -1,4 +1,8 @@
-import { generateKeyPairSync, sign as cryptoSign, randomBytes } from "node:crypto";
+import {
+  generateKeyPairSync,
+  sign as cryptoSign,
+  randomBytes,
+} from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -17,8 +21,11 @@ export const publicKeyHex = keys.publicKey
   .toString("hex");
 
 export function sign(timestamp: string, body: string): string {
-  return cryptoSign(null, Buffer.concat([Buffer.from(timestamp), Buffer.from(body)]), keys.privateKey)
-    .toString("hex");
+  return cryptoSign(
+    null,
+    Buffer.concat([Buffer.from(timestamp), Buffer.from(body)]),
+    keys.privateKey,
+  ).toString("hex");
 }
 
 export function testConfig(overrides: Partial<Config> = {}): Config {
@@ -50,18 +57,26 @@ export interface Harness {
  * ioredis-mock keeps one keyspace per connection, so instances share data.
  * Flushing here gives each harness a clean store.
  */
-export async function makeHarness(overrides: Partial<Config> = {}): Promise<Harness> {
+export async function makeHarness(
+  overrides: Partial<Config> = {},
+): Promise<Harness> {
   const config = testConfig(overrides);
   const redis = new RedisMock() as unknown as Redis;
   await redis.flushall();
   const calls: { url: string; body: any }[] = [];
 
-  const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
+  const fetchImpl = (async (
+    url: string | URL | Request,
+    init?: RequestInit,
+  ) => {
     calls.push({
       url: String(url),
       body: init?.body ? JSON.parse(String(init.body)) : null,
     });
-    return new Response("{}", { status: 200, headers: { "Content-Type": "application/json" } });
+    return new Response("{}", {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }) as unknown as typeof fetch;
 
   const deps: AppDeps = { config, redis, fetch: fetchImpl };
@@ -74,10 +89,14 @@ export async function makeHarness(overrides: Partial<Config> = {}): Promise<Harn
   };
 }
 
-export function interactionRequest(payload: unknown, opts: { valid?: boolean } = {}): Request {
+export function interactionRequest(
+  payload: unknown,
+  opts: { valid?: boolean } = {},
+): Request {
   const body = JSON.stringify(payload);
   const timestamp = String(Math.floor(Date.now() / 1000));
-  const signature = opts.valid === false ? "00".repeat(64) : sign(timestamp, body);
+  const signature =
+    opts.valid === false ? "00".repeat(64) : sign(timestamp, body);
 
   return new Request("https://uploader.test/interactions", {
     method: "POST",
@@ -106,7 +125,12 @@ export function uploadCommand(overrides: Record<string, unknown> = {}) {
 /** Build a multipart/form-data body without depending on the runtime's FormData. */
 export function multipart(
   fields: Record<string, string>,
-  file: { field: string; filename: string; contentType: string; content: Buffer },
+  file: {
+    field: string;
+    filename: string;
+    contentType: string;
+    content: Buffer;
+  },
 ): { body: Buffer; contentType: string } {
   const boundary = `----test${randomBytes(8).toString("hex")}`;
   const parts: Buffer[] = [];
@@ -135,18 +159,32 @@ export function multipart(
 }
 
 function pad(head: Buffer, size = 512): Buffer {
-  return Buffer.concat([head, Buffer.alloc(Math.max(0, size - head.length), 0x21)]);
+  return Buffer.concat([
+    head,
+    Buffer.alloc(Math.max(0, size - head.length), 0x21),
+  ]);
 }
 
 export const fixtures = {
-  png: (size = 512) => pad(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), size),
+  png: (size = 512) =>
+    pad(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), size),
   jpeg: (size = 512) => pad(Buffer.from([0xff, 0xd8, 0xff, 0xe0]), size),
   gif: (size = 512) => pad(Buffer.from("GIF89a"), size),
   webp: (size = 512) =>
-    pad(Buffer.concat([Buffer.from("RIFF"), Buffer.alloc(4), Buffer.from("WEBP")]), size),
-  avif: (size = 512) => pad(Buffer.concat([Buffer.alloc(4), Buffer.from("ftypavif")]), size),
-  mp4: (size = 512) => pad(Buffer.concat([Buffer.alloc(4), Buffer.from("ftypisom")]), size),
-  mov: (size = 512) => pad(Buffer.concat([Buffer.alloc(4), Buffer.from("ftypqt  ")]), size),
+    pad(
+      Buffer.concat([
+        Buffer.from("RIFF"),
+        Buffer.alloc(4),
+        Buffer.from("WEBP"),
+      ]),
+      size,
+    ),
+  avif: (size = 512) =>
+    pad(Buffer.concat([Buffer.alloc(4), Buffer.from("ftypavif")]), size),
+  mp4: (size = 512) =>
+    pad(Buffer.concat([Buffer.alloc(4), Buffer.from("ftypisom")]), size),
+  mov: (size = 512) =>
+    pad(Buffer.concat([Buffer.alloc(4), Buffer.from("ftypqt  ")]), size),
   webm: (size = 512) =>
     pad(
       Buffer.concat([
@@ -156,7 +194,9 @@ export const fixtures = {
       ]),
       size,
     ),
-  html: (size = 512) => pad(Buffer.from("<!doctype html><script>alert(1)</script>"), size),
-  svg: (size = 512) => pad(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), size),
+  html: (size = 512) =>
+    pad(Buffer.from("<!doctype html><script>alert(1)</script>"), size),
+  svg: (size = 512) =>
+    pad(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), size),
   zip: (size = 512) => pad(Buffer.from([0x50, 0x4b, 0x03, 0x04]), size),
 };

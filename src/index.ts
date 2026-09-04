@@ -22,7 +22,9 @@ async function main() {
   console.log(
     `Discord app ${config.discordAppId}, public key ${config.discordPublicKey}`,
   );
-  console.log(`Interactions endpoint should be set to ${config.publicUrl}/interactions`);
+  console.log(
+    `Interactions endpoint should be set to ${config.publicUrl}/interactions`,
+  );
 
   console.log(`Connecting to Redis at ${redacted(config.redisUrl)}`);
   const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 3 });
@@ -65,7 +67,8 @@ function redacted(url: string): string {
 }
 
 main().catch((err) => {
-  if (err instanceof ConfigError) console.error(`Configuration error: ${err.message}`);
+  if (err instanceof ConfigError)
+    console.error(`Configuration error: ${err.message}`);
   else console.error("Startup failed:", err);
   process.exit(1);
 });

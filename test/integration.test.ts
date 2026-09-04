@@ -30,12 +30,15 @@ function post(sid: string, part: ReturnType<typeof multipart>): Request {
 }
 
 function imagePart(content = fixtures.png(), filename = "photo.png") {
-  return multipart({ width: "800", height: "600" }, {
-    field: "file",
-    filename,
-    contentType: "image/png",
-    content,
-  });
+  return multipart(
+    { width: "800", height: "600" },
+    {
+      field: "file",
+      filename,
+      contentType: "image/png",
+      content,
+    },
+  );
 }
 
 async function startSession(): Promise<string> {
@@ -53,12 +56,16 @@ describe("POST /interactions", () => {
   });
 
   it("rejects a bad signature before doing anything else", async () => {
-    const res = await h.app.fetch(interactionRequest({ type: 1 }, { valid: false }));
+    const res = await h.app.fetch(
+      interactionRequest({ type: 1 }, { valid: false }),
+    );
     expect(res.status).toBe(401);
   });
 
   it("rejects an unknown interaction type", async () => {
-    expect((await h.app.fetch(interactionRequest({ type: 99 }))).status).toBe(400);
+    expect((await h.app.fetch(interactionRequest({ type: 99 }))).status).toBe(
+      400,
+    );
   });
 
   it("replies ephemerally with a link button", async () => {
@@ -91,7 +98,10 @@ describe("POST /interactions", () => {
     globalThis.fetch = (async (url: string, init?: RequestInit) =>
       String(url).includes("discord.com/api")
         ? new Response(
-            JSON.stringify({ approximate_guild_count: 3, approximate_user_install_count: 42 }),
+            JSON.stringify({
+              approximate_guild_count: 3,
+              approximate_user_install_count: 42,
+            }),
             { status: 200 },
           )
         : realFetch(url, init)) as typeof fetch;
@@ -102,12 +112,17 @@ describe("POST /interactions", () => {
 
     expect(body.type).toBe(4);
     expect(body.data.flags).toBe(64);
-    expect(body.data.content).toContain("**Region:**");
-    expect(body.data.content).toContain("**CPU:**");
-    expect(body.data.content).toContain("**Memory:**");
-    expect(body.data.content).toContain("**Disk:**");
-    expect(body.data.content).toContain("**Installs:**");
-    expect(body.data.content).toContain("~3 servers, ~42 individual users");
+    const fields = body.data.embeds[0].fields.map(
+      (f: { name: string }) => f.name,
+    );
+    expect(fields).toEqual(
+      expect.arrayContaining(["Region", "CPU", "Memory", "Disk", "Installs"]),
+    );
+    const installs = body.data.embeds[0].fields.find(
+      (f: { name: string }) => f.name === "Installs",
+    );
+    expect(installs.value).toContain("~3 servers, ~42 individual users");
+    expect(body.data.embeds[0].color).toBe(5793266);
     globalThis.fetch = realFetch;
   });
 
@@ -118,14 +133,24 @@ describe("POST /interactions", () => {
 
     expect(body.type).toBe(4);
     expect(body.data.flags).toBe(64);
-    expect(body.data.content).toContain("https://imageuploader.xyz/support");
-    expect(body.data.components[0].components[0].url).toBe("https://imageuploader.xyz/support");
+    expect(body.data.embeds[0].description).toContain(
+      "https://imageuploader.xyz/support",
+    );
+    expect(body.data.components[0].components[0].url).toBe(
+      "https://imageuploader.xyz/support",
+    );
   });
 
   it("reads the user id from a DM payload, where there is no member object", async () => {
-    const payload = uploadCommand({ member: undefined, user: { id: "dm-user" }, guild_id: undefined });
+    const payload = uploadCommand({
+      member: undefined,
+      user: { id: "dm-user" },
+      guild_id: undefined,
+    });
     const res = await h.app.fetch(interactionRequest(payload));
-    const sid = (await res.json()).data.components[0].components[0].url.split("/u/")[1];
+    const sid = (await res.json()).data.components[0].components[0].url.split(
+      "/u/",
+    )[1];
     expect((await h.deps.redis.hgetall(`sess:${sid}`)).userId).toBe("dm-user");
   });
 });
@@ -133,11 +158,15 @@ describe("POST /interactions", () => {
 describe("GET /u/:sid", () => {
   it("serves the upload page for a live session", async () => {
     const sid = await startSession();
-    const res = await h.app.fetch(new Request(`https://uploader.test/u/${sid}`));
+    const res = await h.app.fetch(
+      new Request(`https://uploader.test/u/${sid}`),
+    );
     const html = await res.text();
 
     expect(res.status).toBe(200);
-    expect(res.headers.get("Content-Security-Policy")).toContain("script-src 'self'");
+    expect(res.headers.get("Content-Security-Policy")).toContain(
+      "script-src 'self'",
+    );
     expect(html).toContain(`data-sid="${sid}"`);
     expect(html).not.toContain("{{SID}}");
   });
@@ -158,7 +187,9 @@ describe("upload flow", () => {
     expect(res.status).toBe(200);
     expect(body.posted).toBe(true);
     expect(body.kind).toBe("image");
-    expect(body.url).toMatch(/^https:\/\/uploader\.test\/f\/[\w-]{22}\/photo\.png$/);
+    expect(body.url).toMatch(
+      /^https:\/\/uploader\.test\/f\/[\w-]{22}\/photo\.png$/,
+    );
 
     expect(h.calls).toHaveLength(1);
     expect(h.calls[0].url).toBe(
@@ -180,12 +211,15 @@ describe("upload flow", () => {
 
   it("posts a bare link for a video so Discord unfurls the player", async () => {
     const sid = await startSession();
-    const part = multipart({ width: "1920", height: "1080" }, {
-      field: "file",
-      filename: "clip.mp4",
-      contentType: "video/mp4",
-      content: fixtures.mp4(),
-    });
+    const part = multipart(
+      { width: "1920", height: "1080" },
+      {
+        field: "file",
+        filename: "clip.mp4",
+        contentType: "video/mp4",
+        content: fixtures.mp4(),
+      },
+    );
 
     const body = await (await h.app.fetch(post(sid, part))).json();
     expect(body.kind).toBe("video");
@@ -200,7 +234,9 @@ describe("upload flow", () => {
     const sid = await startSession();
     expect((await h.app.fetch(post(sid, imagePart()))).status).toBe(200);
 
-    expect((await h.app.fetch(new Request(`https://uploader.test/u/${sid}`))).status).toBe(404);
+    expect(
+      (await h.app.fetch(new Request(`https://uploader.test/u/${sid}`))).status,
+    ).toBe(404);
     expect((await h.app.fetch(post(sid, imagePart()))).status).toBe(404);
   });
 
@@ -217,12 +253,15 @@ describe("upload flow", () => {
 
   it("rejects a non-media file and leaves nothing on disk", async () => {
     const sid = await startSession();
-    const part = multipart({}, {
-      field: "file",
-      filename: "payload.png",
-      contentType: "image/png",
-      content: fixtures.html(),
-    });
+    const part = multipart(
+      {},
+      {
+        field: "file",
+        filename: "payload.png",
+        contentType: "image/png",
+        content: fixtures.html(),
+      },
+    );
 
     const res = await h.app.fetch(post(sid, part));
     expect(res.status).toBe(415);
@@ -242,12 +281,15 @@ describe("upload flow", () => {
 
   it("names the file from the sniffed type, not the client extension", async () => {
     const sid = await startSession();
-    const part = multipart({}, {
-      field: "file",
-      filename: "../../evil.exe",
-      contentType: "application/octet-stream",
-      content: fixtures.mp4(),
-    });
+    const part = multipart(
+      {},
+      {
+        field: "file",
+        filename: "../../evil.exe",
+        contentType: "application/octet-stream",
+        content: fixtures.mp4(),
+      },
+    );
 
     const body = await (await h.app.fetch(post(sid, part))).json();
     expect(body.fileUrl).toMatch(/\/evil\.mp4$/);
@@ -257,7 +299,11 @@ describe("upload flow", () => {
   it("keeps the file but reports posted:false once the token has expired", async () => {
     const sid = await startSession();
     // Backdate the session past the 15-minute interaction token lifetime.
-    await h.deps.redis.hset(`sess:${sid}`, "createdAt", String(Date.now() - 16 * 60 * 1000));
+    await h.deps.redis.hset(
+      `sess:${sid}`,
+      "createdAt",
+      String(Date.now() - 16 * 60 * 1000),
+    );
 
     const body = await (await h.app.fetch(post(sid, imagePart()))).json();
     expect(body.posted).toBe(false);
@@ -266,7 +312,8 @@ describe("upload flow", () => {
   });
 
   it("reports posted:false when Discord rejects the followup, keeping the file", async () => {
-    h.deps.fetch = (async () => new Response("gone", { status: 404 })) as unknown as typeof fetch;
+    h.deps.fetch = (async () =>
+      new Response("gone", { status: 404 })) as unknown as typeof fetch;
     const sid = await startSession();
 
     const body = await (await h.app.fetch(post(sid, imagePart()))).json();
@@ -278,12 +325,16 @@ describe("upload flow", () => {
 describe("serving files", () => {
   async function upload(content = fixtures.png(), filename = "photo.png") {
     const sid = await startSession();
-    const body = await (await h.app.fetch(post(sid, imagePart(content, filename)))).json();
+    const body = await (
+      await h.app.fetch(post(sid, imagePart(content, filename)))
+    ).json();
     return new URL(body.fileUrl).pathname;
   }
 
   it("serves the file with the sniffed type and immutable caching", async () => {
-    const res = await h.app.fetch(new Request(`https://uploader.test${await upload()}`));
+    const res = await h.app.fetch(
+      new Request(`https://uploader.test${await upload()}`),
+    );
 
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toBe("image/png");
@@ -296,17 +347,23 @@ describe("serving files", () => {
   it("answers a range request with the right bytes", async () => {
     const path = await upload();
     const res = await h.app.fetch(
-      new Request(`https://uploader.test${path}`, { headers: { Range: "bytes=0-9" } }),
+      new Request(`https://uploader.test${path}`, {
+        headers: { Range: "bytes=0-9" },
+      }),
     );
 
     expect(res.status).toBe(206);
     expect(res.headers.get("Content-Range")).toBe("bytes 0-9/512");
-    expect(Buffer.from(await res.arrayBuffer())).toEqual(fixtures.png().subarray(0, 10));
+    expect(Buffer.from(await res.arrayBuffer())).toEqual(
+      fixtures.png().subarray(0, 10),
+    );
   });
 
   it("answers an unsatisfiable range with 416", async () => {
     const res = await h.app.fetch(
-      new Request(`https://uploader.test${await upload()}`, { headers: { Range: "bytes=9999-" } }),
+      new Request(`https://uploader.test${await upload()}`, {
+        headers: { Range: "bytes=9999-" },
+      }),
     );
     expect(res.status).toBe(416);
     expect(res.headers.get("Content-Range")).toBe("bytes */512");
@@ -315,11 +372,15 @@ describe("serving files", () => {
   it("404s when the name does not match the stored record", async () => {
     const path = await upload();
     const wrong = path.replace(/[^/]+$/, "other.png");
-    expect((await h.app.fetch(new Request(`https://uploader.test${wrong}`))).status).toBe(404);
+    expect(
+      (await h.app.fetch(new Request(`https://uploader.test${wrong}`))).status,
+    ).toBe(404);
   });
 
   it("404s for an unknown id", async () => {
-    const res = await h.app.fetch(new Request("https://uploader.test/f/missing/x.png"));
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/f/missing/x.png"),
+    );
     expect(res.status).toBe(404);
   });
 });
@@ -327,16 +388,21 @@ describe("serving files", () => {
 describe("GET /v/:id", () => {
   it("serves OG player tags with the client-reported dimensions", async () => {
     const sid = await startSession();
-    const part = multipart({ width: "1920", height: "1080" }, {
-      field: "file",
-      filename: "clip.mp4",
-      contentType: "video/mp4",
-      content: fixtures.mp4(),
-    });
+    const part = multipart(
+      { width: "1920", height: "1080" },
+      {
+        field: "file",
+        filename: "clip.mp4",
+        contentType: "video/mp4",
+        content: fixtures.mp4(),
+      },
+    );
     const body = await (await h.app.fetch(post(sid, part))).json();
 
     const html = await (await h.app.fetch(new Request(body.url))).text();
-    expect(html).toContain('property="og:video" content="https://uploader.test/f/');
+    expect(html).toContain(
+      'property="og:video" content="https://uploader.test/f/',
+    );
     expect(html).toContain('content="video/mp4"');
     expect(html).toContain('property="og:video:width" content="1920"');
     expect(html).toContain('property="og:video:height" content="1080"');
@@ -345,12 +411,15 @@ describe("GET /v/:id", () => {
 
   it("falls back to 1280x720 when the browser reported no dimensions", async () => {
     const sid = await startSession();
-    const part = multipart({ width: "0", height: "0" }, {
-      field: "file",
-      filename: "clip.mp4",
-      contentType: "video/mp4",
-      content: fixtures.mp4(),
-    });
+    const part = multipart(
+      { width: "0", height: "0" },
+      {
+        field: "file",
+        filename: "clip.mp4",
+        contentType: "video/mp4",
+        content: fixtures.mp4(),
+      },
+    );
     const body = await (await h.app.fetch(post(sid, part))).json();
 
     const html = await (await h.app.fetch(new Request(body.url))).text();
@@ -374,11 +443,17 @@ describe("eviction during upload", () => {
     h.cleanup();
     h = await makeHarness({ maxTotalBytes: 700 });
 
-    const first = await (await h.app.fetch(post(await startSession(), imagePart()))).json();
+    const first = await (
+      await h.app.fetch(post(await startSession(), imagePart()))
+    ).json();
     const firstId = new URL(first.fileUrl).pathname.split("/")[2];
 
     // Backdate the first upload so it is outside the protection window.
-    await h.deps.redis.hset(`file:${firstId}`, "createdAt", String(Date.now() - 120_000));
+    await h.deps.redis.hset(
+      `file:${firstId}`,
+      "createdAt",
+      String(Date.now() - 120_000),
+    );
     await h.deps.redis.zadd("files:lru", Date.now() - 120_000, firstId);
 
     await h.app.fetch(post(await startSession(), imagePart()));
@@ -393,7 +468,9 @@ describe("delete button on a posted upload", () => {
     const sid = (
       await (
         await h.app.fetch(
-          interactionRequest(uploadCommand({ member: { user: { id: userId } } })),
+          interactionRequest(
+            uploadCommand({ member: { user: { id: userId } } }),
+          ),
         )
       ).json()
     ).data.components[0].components[0].url.split("/u/")[1];
@@ -444,7 +521,9 @@ describe("delete button on a posted upload", () => {
   });
 
   it("still removes the message when the file is already gone", async () => {
-    const body = await (await h.app.fetch(buttonPress("missingid", "user-42"))).json();
+    const body = await (
+      await h.app.fetch(buttonPress("missingid", "user-42"))
+    ).json();
     expect(body.type).toBe(6);
     await new Promise((r) => setTimeout(r, 30));
     expect(h.calls.at(-1)?.url).toContain("/messages/@original");
@@ -452,26 +531,41 @@ describe("delete button on a posted upload", () => {
 });
 
 describe("/stats", () => {
-  const statsCommand = () => uploadCommand({ data: { name: "stats", type: 1 } });
+  const statsCommand = () =>
+    uploadCommand({ data: { name: "stats", type: 1 } });
 
   it("reports nothing stored for a new user", async () => {
-    const body = await (await h.app.fetch(interactionRequest(statsCommand()))).json();
+    const body = await (
+      await h.app.fetch(interactionRequest(statsCommand()))
+    ).json();
     expect(body.data.flags).toBe(64);
-    expect(body.data.content).toContain("nothing stored");
+    expect(body.data.embeds[0].description).toContain("nothing stored yet");
+    expect(body.data.embeds[0].description).toMatch(/░{10} 0%/);
   });
 
   it("counts the caller's files and bytes after an upload", async () => {
     await h.app.fetch(post(await startSession(), imagePart()));
-    const body = await (await h.app.fetch(interactionRequest(statsCommand()))).json();
-    expect(body.data.content).toContain("**Files:** 1");
-    expect(body.data.content).toMatch(/\*\*Used:\*\* .+ \/ .+ \(\d+%\)/);
+    const body = await (
+      await h.app.fetch(interactionRequest(statsCommand()))
+    ).json();
+    const embed = body.data.embeds[0];
+    const filesField = embed.fields.find(
+      (f: { name: string }) => f.name === "Files",
+    );
+    expect(filesField.value).toBe("1");
+    expect(embed.description).toMatch(/across \*\*1\*\* file\./);
+    expect(embed.description).toMatch(/[█░]{10} \d+%/);
   });
 });
 
 describe("upload ttl", () => {
   function ttlCommand(value: string) {
     return uploadCommand({
-      data: { name: "upload", type: 1, options: [{ name: "ttl", type: 3, value }] },
+      data: {
+        name: "upload",
+        type: 1,
+        options: [{ name: "ttl", type: 3, value }],
+      },
     });
   }
 
@@ -482,16 +576,24 @@ describe("upload ttl", () => {
   }
 
   it("stamps an expiry and indexes it when a ttl is chosen", async () => {
-    const body = await (await h.app.fetch(post(await startWithTtl("1h"), imagePart()))).json();
+    const body = await (
+      await h.app.fetch(post(await startWithTtl("1h"), imagePart()))
+    ).json();
     const id = new URL(body.fileUrl).pathname.split("/")[2];
 
-    const expiresAt = Number(await h.deps.redis.hget(`file:${id}`, "expiresAt"));
+    const expiresAt = Number(
+      await h.deps.redis.hget(`file:${id}`, "expiresAt"),
+    );
     expect(expiresAt).toBeGreaterThan(Date.now());
-    expect(await h.deps.redis.zscore("files:expiry", id)).toBe(String(expiresAt));
+    expect(await h.deps.redis.zscore("files:expiry", id)).toBe(
+      String(expiresAt),
+    );
   });
 
   it("keeps forever uploads out of the expiry index", async () => {
-    const body = await (await h.app.fetch(post(await startWithTtl("forever"), imagePart()))).json();
+    const body = await (
+      await h.app.fetch(post(await startWithTtl("forever"), imagePart()))
+    ).json();
     const id = new URL(body.fileUrl).pathname.split("/")[2];
 
     expect(await h.deps.redis.hget(`file:${id}`, "expiresAt")).toBe("0");
@@ -499,7 +601,9 @@ describe("upload ttl", () => {
   });
 
   it("reaps a file whose expiry has passed on the next gallery open", async () => {
-    const body = await (await h.app.fetch(post(await startWithTtl("1h"), imagePart()))).json();
+    const body = await (
+      await h.app.fetch(post(await startWithTtl("1h"), imagePart()))
+    ).json();
     const id = new URL(body.fileUrl).pathname.split("/")[2];
     await h.deps.redis.zadd("files:expiry", Date.now() - 1000, id);
 
@@ -512,8 +616,9 @@ describe("upload ttl", () => {
 
   async function openSessionGallery(): Promise<string> {
     const payload = uploadCommand({ data: { name: "gallery", type: 1 } });
-    const url: string = (await (await h.app.fetch(interactionRequest(payload))).json()).data
-      .components[0].components[0].url;
+    const url: string = (
+      await (await h.app.fetch(interactionRequest(payload))).json()
+    ).data.components[0].components[0].url;
     return url.split("/g/")[1];
   }
 });
@@ -521,15 +626,22 @@ describe("upload ttl", () => {
 describe("per-user quota", () => {
   it("evicts the uploader's own oldest file to fit a new one", async () => {
     h.cleanup();
-    h = await makeHarness({ maxUserBytes: 4000, maxTotalBytes: 10 * 1024 * 1024 });
+    h = await makeHarness({
+      maxUserBytes: 4000,
+      maxTotalBytes: 10 * 1024 * 1024,
+    });
 
     const first = await (
-      await h.app.fetch(post(await startSession(), imagePart(fixtures.png(3000))))
+      await h.app.fetch(
+        post(await startSession(), imagePart(fixtures.png(3000))),
+      )
     ).json();
     const firstId = new URL(first.fileUrl).pathname.split("/")[2];
 
     const second = await (
-      await h.app.fetch(post(await startSession(), imagePart(fixtures.png(3000))))
+      await h.app.fetch(
+        post(await startSession(), imagePart(fixtures.png(3000))),
+      )
     ).json();
     const secondId = new URL(second.fileUrl).pathname.split("/")[2];
 
@@ -540,9 +652,14 @@ describe("per-user quota", () => {
 
   it("rejects a single file larger than the whole quota", async () => {
     h.cleanup();
-    h = await makeHarness({ maxUserBytes: 2000, maxFileBytes: 10 * 1024 * 1024 });
+    h = await makeHarness({
+      maxUserBytes: 2000,
+      maxFileBytes: 10 * 1024 * 1024,
+    });
 
-    const res = await h.app.fetch(post(await startSession(), imagePart(fixtures.png(5000))));
+    const res = await h.app.fetch(
+      post(await startSession(), imagePart(fixtures.png(5000))),
+    );
     expect(res.status).toBe(413);
     expect(readdirSync(h.deps.config.dataDir)).toEqual([]);
   });

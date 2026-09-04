@@ -19,7 +19,8 @@ export interface RateLimitResult {
   resetAt: number;
 }
 
-const key = (scope: string, userId: string, window: number) => `rl:${scope}:${userId}:${window}`;
+const key = (scope: string, userId: string, window: number) =>
+  `rl:${scope}:${userId}:${window}`;
 
 /**
  * A limit of 0 or less disables the check entirely, which is how an operator

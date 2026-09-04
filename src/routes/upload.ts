@@ -8,11 +8,21 @@ import { pipeline } from "node:stream/promises";
 import type { AppDeps } from "../app.js";
 import { UPLOAD_PAGE_CSP, assets } from "../assets.js";
 import { expiredShell } from "../pages.js";
-import { buildFollowupPayload, fileUrl, postFollowup, watchUrl } from "../discord/followup.js";
+import {
+  buildFollowupPayload,
+  fileUrl,
+  postFollowup,
+  watchUrl,
+} from "../discord/followup.js";
 import { requestNodeStream } from "../http/body.js";
 import { sweep } from "../storage/lru.js";
 import { checkRateLimit, minutesUntil } from "../storage/ratelimit.js";
-import { claimSession, deleteSession, getSession, newId } from "../storage/sessions.js";
+import {
+  claimSession,
+  deleteSession,
+  getSession,
+  newId,
+} from "../storage/sessions.js";
 import { SNIFF_BYTES, slugifyBasename, sniff } from "../storage/sniff.js";
 import {
   deleteRecord,
@@ -28,7 +38,10 @@ import type { FileRecord, SniffResult, UploadSession } from "../types.js";
 const TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 
 class UploadError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -39,7 +52,9 @@ export function uploadRoutes(deps: AppDeps): Hono {
   app.get("/u/:sid", async (c) => {
     const session = await getSession(deps.redis, c.req.param("sid"));
     if (!session || session.kind !== "upload") {
-      return c.html(expiredPage(), 404, { "Content-Security-Policy": UPLOAD_PAGE_CSP });
+      return c.html(expiredPage(), 404, {
+        "Content-Security-Policy": UPLOAD_PAGE_CSP,
+      });
     }
 
     const html = assets.uploadHtml
@@ -104,7 +119,8 @@ export function uploadRoutes(deps: AppDeps): Hono {
       received = await receiveUpload(c, deps, dir);
     } catch (err) {
       await rm(dir, { recursive: true, force: true });
-      if (err instanceof UploadError) return c.json({ error: err.message }, err.status as 400);
+      if (err instanceof UploadError)
+        return c.json({ error: err.message }, err.status as 400);
       console.error("Upload failed:", err);
       return c.json({ error: "Upload failed" }, 500);
     }
@@ -145,7 +161,10 @@ export function uploadRoutes(deps: AppDeps): Hono {
 
     return c.json({
       posted,
-      url: record.kind === "video" ? watchUrl(deps.config, record) : fileUrl(deps.config, record),
+      url:
+        record.kind === "video"
+          ? watchUrl(deps.config, record)
+          : fileUrl(deps.config, record),
       fileUrl: fileUrl(deps.config, record),
       kind: record.kind,
     });
@@ -165,11 +184,18 @@ async function maybePost(
   record: FileRecord,
 ): Promise<boolean> {
   if (Date.now() - session.createdAt >= TOKEN_LIFETIME_MS) {
-    console.warn(`Interaction token for session ${session.sid} expired before upload finished`);
+    console.warn(
+      `Interaction token for session ${session.sid} expired before upload finished`,
+    );
     return false;
   }
   const payload = buildFollowupPayload(deps.config, record);
-  return postFollowup(deps.config, session.interactionToken, payload, deps.fetch);
+  return postFollowup(
+    deps.config,
+    session.interactionToken,
+    payload,
+    deps.fetch,
+  );
 }
 
 /**
@@ -177,7 +203,11 @@ async function maybePost(
  * their quota. `incomingSize` is already known to be <= the quota, so the loop
  * always terminates once enough of their files are gone.
  */
-async function enforceUserQuota(deps: AppDeps, userId: string, incomingSize: number): Promise<void> {
+async function enforceUserQuota(
+  deps: AppDeps,
+  userId: string,
+  incomingSize: number,
+): Promise<void> {
   let used = await userBytes(deps.redis, userId);
   if (used + incomingSize <= deps.config.maxUserBytes) return;
 
@@ -250,7 +280,9 @@ async function receiveUpload(
               if (head.length >= SNIFF_BYTES) {
                 type = sniff(head);
                 if (!type) {
-                  cb(new UploadError(415, "Only images and videos are accepted"));
+                  cb(
+                    new UploadError(415, "Only images and videos are accepted"),
+                  );
                   return;
                 }
               }
@@ -263,7 +295,8 @@ async function receiveUpload(
 
         // Files shorter than the sniff window are typed once the stream ends.
         type ??= sniff(head);
-        if (!type) throw new UploadError(415, "Only images and videos are accepted");
+        if (!type)
+          throw new UploadError(415, "Only images and videos are accepted");
 
         const name = `${slugifyBasename(info.filename ?? "file")}.${type.ext}`;
         await rename(partPath, path.join(dir, name));
@@ -306,5 +339,8 @@ function dimension(raw: string | undefined, fallback: number): number {
 }
 
 function expiredPage(): string {
-  return expiredShell("This upload link has already been used or has run out of time.", "upload");
+  return expiredShell(
+    "This upload link has already been used or has run out of time.",
+    "upload",
+  );
 }

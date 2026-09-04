@@ -7,7 +7,10 @@ export type RangeResult =
  * Parse a single byte range. Multi-range requests are answered with the whole
  * body ("none"), which is a legal response and all the Discord player needs.
  */
-export function parseRange(header: string | null | undefined, size: number): RangeResult {
+export function parseRange(
+  header: string | null | undefined,
+  size: number,
+): RangeResult {
   if (!header) return { type: "none" };
 
   const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim());

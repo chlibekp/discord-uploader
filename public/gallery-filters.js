@@ -28,7 +28,8 @@ export const SORTS = {
   oldest: (a, b) => a.createdAt - b.createdAt,
   largest: (a, b) => b.size - a.size,
   smallest: (a, b) => a.size - b.size,
-  soonest: (a, b) => expirySortValue(a.expiresAt) - expirySortValue(b.expiresAt),
+  soonest: (a, b) =>
+    expirySortValue(a.expiresAt) - expirySortValue(b.expiresAt),
 };
 
 export const SORT_MODES = Object.keys(SORTS);
