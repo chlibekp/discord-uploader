@@ -6,6 +6,7 @@ import { collectInfra } from "../infra.js";
 import {
   brandedEmbed,
   buildInfraEmbed,
+  formatPct,
   progressBar,
 } from "../discord/embeds.js";
 import { ttlValueToMs, describeTtl } from "../ttl.js";
@@ -18,6 +19,7 @@ import {
   userBytes,
 } from "../storage/store.js";
 import { checkRateLimit, minutesUntil } from "../storage/ratelimit.js";
+import { getUsageStats, recordCommandUse } from "../storage/usage.js";
 
 const PING = 1;
 const APPLICATION_COMMAND = 2;
@@ -84,6 +86,18 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       return c.json({ error: "Unsupported interaction" }, 400);
     }
 
+    const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
+    const channelId: string | undefined = body.channel_id;
+
+    // Counted for every accepted command, including the ones that reply without
+    // touching storage. A broken counter must not cost the user their command,
+    // so a failure here is logged and swallowed.
+    try {
+      await recordCommandUse(deps.redis, command, userId);
+    } catch (err) {
+      console.error(`Failed to record usage for /${command}:`, err);
+    }
+
     if (command === "help") {
       return c.json(
         embedReply(
@@ -93,7 +107,7 @@ export function interactionsRoutes(deps: AppDeps): Hono {
               "`/upload` — Upload an image or video (optional `ttl` to auto-delete)",
               "`/gallery` — Browse everything you have uploaded",
               "`/stats` — Show how much you have stored",
-              "`/info` — Show infrastructure, resource usage, and install count",
+              "`/info` — Show infrastructure, resource usage, installs, and bot usage",
               "`/support` — Get a link to the support page",
               "`/help` — Show this help message",
             ].join("\n"),
@@ -127,15 +141,13 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     }
 
     if (command === "info") {
-      const report = await collectInfra(
-        deps.config.dataDir,
-        deps.config.discordBotToken,
-      );
-      return c.json(embedReply(buildInfraEmbed(report)));
+      const [report, usage] = await Promise.all([
+        collectInfra(deps.config.dataDir, deps.config.discordBotToken),
+        getUsageStats(deps.redis),
+      ]);
+      return c.json(embedReply(buildInfraEmbed(report, usage)));
     }
 
-    const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
-    const channelId: string | undefined = body.channel_id;
     if (!userId || !channelId) {
       return c.json(
         ephemeral("Could not determine who or where you are. Try again."),
@@ -174,7 +186,7 @@ export function interactionsRoutes(deps: AppDeps): Hono {
             title: "📊 ImageUploader — Your storage",
             description:
               `You've used **${formatBytes(used)}** of **${formatBytes(quota)}** ` +
-              `(${Math.round(pct)}%) across **${files.length}** file${files.length === 1 ? "" : "s"}.\n` +
+              `(${formatPct(pct)}) across **${files.length}** file${files.length === 1 ? "" : "s"}.\n` +
               "```\n" +
               progressBar(pct) +
               "\n```",
