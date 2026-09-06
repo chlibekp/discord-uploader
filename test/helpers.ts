@@ -41,6 +41,8 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     maxUserBytes: 8 * 1024 * 1024,
     rateLimitSessionsPerHour: 20,
     rateLimitUploadsPerHour: 30,
+    adminUserIds: ["979103930309046323"],
+    adminGuildId: "",
     port: 3000,
     ...overrides,
   };

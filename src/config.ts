@@ -13,6 +13,10 @@ export interface Config {
   rateLimitSessionsPerHour: number;
   /** Max files one user may upload per rolling hour. 0 disables. */
   rateLimitUploadsPerHour: number;
+  /** Discord user ids allowed to run /admin. */
+  adminUserIds: string[];
+  /** Guild the /admin command is registered to. Empty means it is not registered. */
+  adminGuildId: string;
   port: number;
 }
 
@@ -23,6 +27,7 @@ const DEFAULTS = {
   MAX_USER_BYTES: "2147483648",
   RATE_LIMIT_SESSIONS_PER_HOUR: "150",
   RATE_LIMIT_UPLOADS_PER_HOUR: "30",
+  ADMIN_USER_IDS: "979103930309046323",
   PORT: "3000",
 } as const;
 
@@ -105,6 +110,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       "RATE_LIMIT_UPLOADS_PER_HOUR",
       DEFAULTS.RATE_LIMIT_UPLOADS_PER_HOUR,
     ),
+    adminUserIds: (env.ADMIN_USER_IDS?.trim() || DEFAULTS.ADMIN_USER_IDS)
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
+    adminGuildId: env.ADMIN_GUILD_ID?.trim() || "",
     port: positiveInt(env, "PORT", DEFAULTS.PORT),
   };
 }

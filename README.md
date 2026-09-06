@@ -116,7 +116,21 @@ would have a different disk and 404 on files the first one wrote. `railway.json`
 | `MAX_USER_BYTES`               | no       | `2147483648` | 2 GB cap on one uploader's live files                                             |
 | `RATE_LIMIT_SESSIONS_PER_HOUR` | no       | `150`        | Max `/upload` + `/gallery` links one user may mint per rolling hour. `0` disables |
 | `RATE_LIMIT_UPLOADS_PER_HOUR`  | no       | `30`         | Max files one user may upload per rolling hour. `0` disables                      |
+| `ADMIN_USER_IDS`               | no       | operator id  | Comma-separated Discord user ids allowed to run `/admin`                          |
+| `ADMIN_GUILD_ID`               | no       |              | Guild `/admin` is registered to. Unset means `/admin` is never registered         |
 | `PORT`                         | no       | `3000`       | Set by Railway                                                                    |
+
+### Admin dashboard
+
+`/admin` is an operator-only dashboard: an ephemeral embed with buttons for four panels
+— users (paged, heaviest first), storage (totals, top users, largest files), commands
+(usage breakdown), and system (the `/info` infrastructure report). Every button press
+re-reads the data, so the panels are never stale.
+
+Discord has no per-user command visibility, so `/admin` is registered to a single guild
+(`ADMIN_GUILD_ID`) to keep it out of everyone else's command picker, and the handler
+checks the invoking user id against `ADMIN_USER_IDS` on both the command and every
+button. The guild scope is convenience; the id check is the access control.
 
 ## Storage and eviction
 

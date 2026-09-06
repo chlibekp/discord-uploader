@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { Redis } from "ioredis";
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
-import { registerCommands } from "./discord/register.js";
+import { registerAdminCommand, registerCommands } from "./discord/register.js";
 import { reconcile } from "./storage/lru.js";
 import { ensureDataDir, verifyDataDirWritable } from "./storage/store.js";
 
@@ -40,6 +40,7 @@ async function main() {
   // Registration failures are logged, not fatal: already-registered commands
   // keep working, and a transient Discord outage should not stop the service.
   await registerCommands(config);
+  await registerAdminCommand(config);
 
   const app = createApp({ config, redis, fetch });
 
