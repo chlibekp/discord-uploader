@@ -64,6 +64,17 @@ export const SUPPORT_COMMAND = {
   contexts: CONTEXTS,
 } as const;
 
+/**
+ * Guild-scoped, so it is only visible in the operator's own server. Discord has
+ * no per-user command visibility, so the handler checks the invoking user id as
+ * well; the guild scope only keeps it out of everyone else's command picker.
+ */
+export const ADMIN_COMMAND = {
+  name: "admin",
+  description: "Operator dashboard",
+  type: 1,
+} as const;
+
 export const COMMANDS = [
   UPLOAD_COMMAND,
   GALLERY_COMMAND,
@@ -110,6 +121,51 @@ export async function registerCommands(
     return true;
   } catch (err) {
     console.error("Command registration request failed:", err);
+    return false;
+  }
+}
+
+/**
+ * Register /admin to the operator's guild. Guild commands propagate instantly
+ * and are invisible everywhere else, which is the closest Discord gets to a
+ * command only one person can see.
+ *
+ * No ADMIN_GUILD_ID means the feature is simply off. Like the global
+ * registration, a failure is reported but never fatal.
+ */
+export async function registerAdminCommand(
+  config: Config,
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean> {
+  if (!config.adminGuildId) {
+    console.log("ADMIN_GUILD_ID unset: skipping /admin registration");
+    return false;
+  }
+
+  const url =
+    `https://discord.com/api/v10/applications/${config.discordAppId}` +
+    `/guilds/${config.adminGuildId}/commands`;
+
+  try {
+    const res = await fetchImpl(url, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bot ${config.discordBotToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify([ADMIN_COMMAND]),
+    });
+
+    if (!res.ok) {
+      console.error(
+        `Admin command registration failed: ${res.status} ${await res.text()}`,
+      );
+      return false;
+    }
+    console.log(`Registered /admin in guild ${config.adminGuildId}`);
+    return true;
+  } catch (err) {
+    console.error("Admin command registration request failed:", err);
     return false;
   }
 }

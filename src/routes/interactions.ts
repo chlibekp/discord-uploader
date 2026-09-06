@@ -6,6 +6,7 @@ import { collectInfra } from "../infra.js";
 import {
   brandedEmbed,
   buildInfraEmbed,
+  formatBytes,
   formatPct,
   progressBar,
 } from "../discord/embeds.js";
@@ -20,6 +21,16 @@ import {
 } from "../storage/store.js";
 import { checkRateLimit, minutesUntil } from "../storage/ratelimit.js";
 import { getUsageStats, recordCommandUse } from "../storage/usage.js";
+import { collectAdminStorage, listAdminUsers } from "../storage/admin.js";
+import {
+  buildAdminComponents,
+  buildAdminEmbed,
+  clampPage,
+  isAdmin,
+  isAdminPanel,
+  type AdminData,
+  type AdminPanel,
+} from "../discord/admin.js";
 
 const PING = 1;
 const APPLICATION_COMMAND = 2;
@@ -28,6 +39,7 @@ const MESSAGE_COMPONENT = 3;
 const PONG = 1;
 const CHANNEL_MESSAGE_WITH_SOURCE = 4;
 const DEFERRED_UPDATE_MESSAGE = 6;
+const UPDATE_MESSAGE = 7;
 const EPHEMERAL = 64;
 
 const SUPPORT_URL = "https://imageuploader.xyz/support";
@@ -81,13 +93,23 @@ export function interactionsRoutes(deps: AppDeps): Hono {
         command !== "help" &&
         command !== "info" &&
         command !== "stats" &&
-        command !== "support")
+        command !== "support" &&
+        command !== "admin")
     ) {
       return c.json({ error: "Unsupported interaction" }, 400);
     }
 
     const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
     const channelId: string | undefined = body.channel_id;
+
+    // /admin is registered to one guild, which hides it from other people's
+    // command pickers but does not stop anyone in that guild from invoking it.
+    // The id check is what actually enforces access, and the refusal is
+    // deliberately vague so the command's existence stays uninteresting.
+    if (command === "admin" && !isAdmin(deps.config, userId)) {
+      console.warn(`Rejected /admin from ${userId ?? "unknown user"}`);
+      return c.json(ephemeral("That command is not available to you."));
+    }
 
     // Counted for every accepted command, including the ones that reply without
     // touching storage. A broken counter must not cost the user their command,
@@ -96,6 +118,10 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       await recordCommandUse(deps.redis, command, userId);
     } catch (err) {
       console.error(`Failed to record usage for /${command}:`, err);
+    }
+
+    if (command === "admin") {
+      return c.json(embedReply(...(await renderAdmin(deps, "users", 0))));
     }
 
     if (command === "help") {
@@ -319,7 +345,23 @@ function embedReply(embed: unknown, components?: unknown[]) {
  * success the file is removed and the whole channel message is deleted.
  */
 async function handleComponent(deps: AppDeps, body: any) {
-  const [action, id] = String(body.data?.custom_id ?? "").split(":");
+  const [action, id, extra] = String(body.data?.custom_id ?? "").split(":");
+
+  if (action === "admin") {
+    const userId: string | undefined = body.member?.user?.id ?? body.user?.id;
+    if (!isAdmin(deps.config, userId)) {
+      return ephemeral("That command is not available to you.");
+    }
+    if (!id || !isAdminPanel(id)) {
+      return ephemeral("That button no longer does anything.");
+    }
+    const [embed, components] = await renderAdmin(deps, id, Number(extra) || 0);
+    return {
+      type: UPDATE_MESSAGE,
+      data: { flags: EPHEMERAL, embeds: [embed], components },
+    };
+  }
+
   if (action !== "del" || !id) {
     return ephemeral("That button no longer does anything.");
   }
@@ -356,13 +398,33 @@ async function finishButtonDelete(
   await deleteInteractionMessage(deps.config, interactionToken, deps.fetch);
 }
 
-function formatBytes(bytes: number): string {
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
+/**
+ * Build one admin panel. The data is read fresh on every button press, so the
+ * dashboard never shows a stale snapshot from when it was first opened.
+ *
+ * The system panel is the only expensive one — it samples the cgroup over
+ * 200ms and asks Discord for the install count — so it is only collected when
+ * that panel is actually being shown.
+ */
+async function renderAdmin(
+  deps: AppDeps,
+  panel: AdminPanel,
+  requestedPage: number,
+): Promise<[unknown, unknown[]]> {
+  const [users, usage, infra] = await Promise.all([
+    listAdminUsers(deps.redis),
+    getUsageStats(deps.redis),
+    panel === "system"
+      ? collectInfra(deps.config.dataDir, deps.config.discordBotToken)
+      : Promise.resolve(undefined),
+  ]);
+  const storage = await collectAdminStorage(deps.redis, users);
+
+  const data: AdminData = { users, storage, usage, infra };
+  const page = clampPage(requestedPage, users.length);
+
+  return [
+    buildAdminEmbed(panel, page, data, deps.config),
+    buildAdminComponents(panel, page, users.length),
+  ];
 }
