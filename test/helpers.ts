@@ -43,6 +43,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     rateLimitUploadsPerHour: 30,
     adminUserIds: ["979103930309046323"],
     adminGuildId: "",
+    commandLogWebhookUrl: "",
     port: 3000,
     ...overrides,
   };
