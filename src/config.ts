@@ -17,6 +17,8 @@ export interface Config {
   adminUserIds: string[];
   /** Guild the /admin command is registered to. Empty means it is not registered. */
   adminGuildId: string;
+  /** Optional Discord webhook URL for logging command executions. Empty means disabled. */
+  commandLogWebhookUrl: string;
   port: number;
 }
 
@@ -115,6 +117,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       .map((id) => id.trim())
       .filter(Boolean),
     adminGuildId: env.ADMIN_GUILD_ID?.trim() || "",
+    commandLogWebhookUrl: env.COMMAND_LOG_WEBHOOK_URL?.trim() || "",
     port: positiveInt(env, "PORT", DEFAULTS.PORT),
   };
 }

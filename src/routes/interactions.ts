@@ -12,6 +12,7 @@ import {
 } from "../discord/embeds.js";
 import { ttlValueToMs, describeTtl } from "../ttl.js";
 import { deleteInteractionMessage } from "../discord/followup.js";
+import { logCommandExecution } from "../discord/command-log.js";
 import {
   deleteRecord,
   expireDue,
@@ -119,6 +120,10 @@ export function interactionsRoutes(deps: AppDeps): Hono {
     } catch (err) {
       console.error(`Failed to record usage for /${command}:`, err);
     }
+
+    const username: string =
+      body.member?.user?.username ?? body.user?.username ?? "unknown";
+    void logCommandExecution(deps.config, username, command, deps.fetch);
 
     if (command === "admin") {
       return c.json(embedReply(...(await renderAdmin(deps, "users", 0))));
