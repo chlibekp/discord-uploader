@@ -190,6 +190,7 @@ then served as script from this origin.
 | `GET /v/:id`            | OG player page for videos                 |
 | `GET /healthz`          | Railway healthcheck                       |
 | `GET /api/stats`        | Public usage counters                     |
+| `GET /metrics`          | Prometheus scrape target                  |
 
 ### Public usage API
 
@@ -208,6 +209,24 @@ aggregates only — never user ids or file data:
 `commands` is every slash command the bot has run; `activeUsers` counts the distinct
 users who have run at least one. Both are lifetime totals held in Redis, and `/info`
 reports the same two figures.
+
+### Prometheus metrics
+
+`GET /metrics` needs no auth and emits the same aggregates as `/api/stats` in the
+text exposition format, plus a few process gauges:
+
+```
+discord_uploader_commands_total 1284
+discord_uploader_command_invocations_total{command="upload"} 902
+discord_uploader_active_users 213
+discord_uploader_stored_bytes 3221225472
+discord_uploader_stored_files 418
+discord_uploader_process_resident_memory_bytes 74891264
+discord_uploader_process_uptime_seconds 90312
+```
+
+Every value is read straight from Redis or `process` on scrape — no user ids, no
+file data. Point a scrape job at it with a short interval.
 
 ## Development
 
