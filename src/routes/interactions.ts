@@ -326,14 +326,10 @@ export function interactionsRoutes(deps: AppDeps): Hono {
   return app;
 }
 
-// Discord renders "-# " prefixed lines as small, muted subtext, which keeps
-// the support link readable without competing with the actual reply.
-const SUPPORT_NOTE = "-# Need help? https://imageuploader.xyz/support";
-
 function ephemeral(content: string) {
   return {
     type: CHANNEL_MESSAGE_WITH_SOURCE,
-    data: { flags: EPHEMERAL, content: `${content}\n${SUPPORT_NOTE}` },
+    data: { flags: EPHEMERAL, content },
   };
 }
 
@@ -342,9 +338,6 @@ function embedReply(embed: unknown, components?: unknown[]) {
     type: CHANNEL_MESSAGE_WITH_SOURCE,
     data: {
       flags: EPHEMERAL,
-      // Embed footers cannot hold a clickable link, so the support note rides
-      // along as subtext above the embed instead.
-      content: SUPPORT_NOTE,
       embeds: [embed],
       ...(components ? { components } : {}),
     },
