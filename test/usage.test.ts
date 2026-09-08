@@ -27,13 +27,13 @@ describe("usage counters", () => {
     const h = await makeHarness();
     try {
       await runCommand(h, "help", "user-1");
-      await runCommand(h, "support", "user-1");
+      await runCommand(h, "stats", "user-1");
       await runCommand(h, "help", "user-2");
 
       const usage = await getUsageStats(h.deps.redis);
       expect(usage.commands).toBe(3);
       expect(usage.activeUsers).toBe(2);
-      expect(usage.byCommand).toEqual({ help: 2, support: 1 });
+      expect(usage.byCommand).toEqual({ help: 2, stats: 1 });
     } finally {
       h.cleanup();
     }
