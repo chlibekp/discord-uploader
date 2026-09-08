@@ -342,6 +342,9 @@ function embedReply(embed: unknown, components?: unknown[]) {
     type: CHANNEL_MESSAGE_WITH_SOURCE,
     data: {
       flags: EPHEMERAL,
+      // Embed footers cannot hold a clickable link, so the support note rides
+      // along as subtext above the embed instead.
+      content: SUPPORT_NOTE,
       embeds: [embed],
       ...(components ? { components } : {}),
     },

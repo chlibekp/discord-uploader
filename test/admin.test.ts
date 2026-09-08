@@ -83,6 +83,9 @@ describe("/admin", () => {
       );
       expect(embed.description).toContain("4.0 KB");
       expect(body.data.components[0].components).toHaveLength(4);
+      expect(body.data.content).toBe(
+        "-# Need help? https://imageuploader.xyz/support",
+      );
     } finally {
       h.cleanup();
     }
