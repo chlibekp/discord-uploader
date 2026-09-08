@@ -129,7 +129,7 @@ describe("session rate limiting on /interactions", () => {
     expect(body.data.components[0].components[0].url).toBeDefined();
   });
 
-  it("does not gate /help, /support, /info or /stats", async () => {
+  it("does not gate /help, /info or /stats", async () => {
     await h.app.fetch(interactionRequest(uploadCommand()));
     await h.app.fetch(interactionRequest(uploadCommand()));
 
