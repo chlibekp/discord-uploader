@@ -326,10 +326,14 @@ export function interactionsRoutes(deps: AppDeps): Hono {
   return app;
 }
 
+// Discord renders "-# " prefixed lines as small, muted subtext, which keeps
+// the support link readable without competing with the actual reply.
+const SUPPORT_NOTE = "-# Need help? https://imageuploader.xyz/support";
+
 function ephemeral(content: string) {
   return {
     type: CHANNEL_MESSAGE_WITH_SOURCE,
-    data: { flags: EPHEMERAL, content },
+    data: { flags: EPHEMERAL, content: `${content}\n${SUPPORT_NOTE}` },
   };
 }
 

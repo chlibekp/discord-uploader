@@ -92,7 +92,12 @@ describe("/admin", () => {
     const h = await adminHarness();
     try {
       const body = (await (await runAdmin(h, "user-42")).json()) as any;
-      expect(body.data.content).toBe("That command is not available to you.");
+      expect(body.data.content).toContain(
+        "That command is not available to you.",
+      );
+      expect(body.data.content).toContain(
+        "-# Need help? https://imageuploader.xyz/support",
+      );
       expect(body.data.embeds).toBeUndefined();
     } finally {
       h.cleanup();
@@ -105,7 +110,9 @@ describe("/admin", () => {
       const body = (await (
         await clickPanel(h, "user-42", "admin:storage:0")
       ).json()) as any;
-      expect(body.data.content).toBe("That command is not available to you.");
+      expect(body.data.content).toContain(
+        "That command is not available to you.",
+      );
     } finally {
       h.cleanup();
     }
@@ -161,7 +168,9 @@ describe("/admin", () => {
       const body = (await (
         await clickPanel(h, ADMIN, "admin:bogus:0")
       ).json()) as any;
-      expect(body.data.content).toBe("That button no longer does anything.");
+      expect(body.data.content).toContain(
+        "That button no longer does anything.",
+      );
     } finally {
       h.cleanup();
     }
