@@ -22,6 +22,12 @@ import {
 } from "../storage/store.js";
 import { checkRateLimit, minutesUntil } from "../storage/ratelimit.js";
 import { getUsageStats, recordCommandUse } from "../storage/usage.js";
+import { createPremiumLink, getPremium } from "../storage/premium.js";
+import {
+  PREMIUM_PRICE_LABEL,
+  isActiveStatus,
+  stripeEnabled,
+} from "../billing/stripe.js";
 import { collectAdminStorage, listAdminUsers } from "../storage/admin.js";
 import {
   buildAdminComponents,
@@ -95,6 +101,7 @@ export function interactionsRoutes(deps: AppDeps): Hono {
         command !== "info" &&
         command !== "stats" &&
         command !== "support" &&
+        command !== "premium" &&
         command !== "admin")
     ) {
       return c.json({ error: "Unsupported interaction" }, 400);
@@ -139,6 +146,7 @@ export function interactionsRoutes(deps: AppDeps): Hono {
               "`/gallery` — Browse everything you have uploaded",
               "`/stats` — Show how much you have stored",
               "`/info` — Show infrastructure, resource usage, installs, and bot usage",
+              "`/premium` — Bigger uploads for " + PREMIUM_PRICE_LABEL,
               "`/support` — Get a link to the support page",
               "`/help` — Show this help message",
             ].join("\n"),
@@ -185,19 +193,29 @@ export function interactionsRoutes(deps: AppDeps): Hono {
       );
     }
 
+    if (command === "premium") {
+      return c.json(await renderPremium(deps, userId));
+    }
+
     if (command === "stats") {
       await expireDue(deps.redis, deps.config);
       const files = await listUserFiles(deps.redis, userId, 1000);
       const used = await userBytes(deps.redis, userId);
       const quota = deps.config.maxUserBytes;
       const pct = quota > 0 ? (used / quota) * 100 : 0;
+      const premium = await getPremium(deps.redis, userId);
+      const plan =
+        premium && isActiveStatus(premium.status)
+          ? `Premium, ${formatBytes(deps.config.premiumMaxFileBytes)} per file`
+          : `Free, ${formatBytes(deps.config.maxFileBytes)} per file`;
       if (files.length === 0) {
         return c.json(
           embedReply(
             brandedEmbed({
               title: "📊 ImageUploader — Your storage",
               description:
-                `You have nothing stored yet. Quota: **${formatBytes(quota)}**.\n` +
+                `You have nothing stored yet. Quota: **${formatBytes(quota)}**. ` +
+                `Plan: **${plan}**.\n` +
                 "```\n" +
                 progressBar(0) +
                 "\n```",
@@ -239,6 +257,7 @@ export function interactionsRoutes(deps: AppDeps): Hono {
                 value: soonest ? day(soonest) : "none scheduled",
                 inline: true,
               },
+              { name: "Plan", value: plan, inline: true },
             ],
           }),
         ),
@@ -346,6 +365,83 @@ function embedReply(embed: unknown, components?: unknown[]) {
       ...(components ? { components } : {}),
     },
   };
+}
+
+/**
+ * /premium: current plan and a button that either starts a €1/month Stripe
+ * Checkout or, for a subscriber, opens the billing portal. The button goes
+ * through our own /p/:token route so nothing is created at Stripe unless the
+ * link is actually opened.
+ */
+async function renderPremium(deps: AppDeps, userId: string) {
+  const free = formatBytes(deps.config.maxFileBytes);
+  const paid = formatBytes(deps.config.premiumMaxFileBytes);
+  const title = "⭐ ImageUploader — Premium";
+
+  const premium = await getPremium(deps.redis, userId);
+  const active = premium !== null && isActiveStatus(premium.status);
+
+  if (!stripeEnabled(deps.config)) {
+    return embedReply(
+      brandedEmbed({
+        title,
+        description: active
+          ? `Premium is active: uploads up to **${paid}** per file.`
+          : `Premium isn't available right now. Free uploads go up to **${free}** per file.`,
+      }),
+    );
+  }
+
+  const token = await createPremiumLink(deps.redis, userId);
+  const url = `${deps.config.publicUrl}/p/${token}`;
+
+  if (active) {
+    const day = premium.currentPeriodEnd
+      ? new Date(premium.currentPeriodEnd).toISOString().slice(0, 10)
+      : "";
+    const renewal = !day
+      ? ""
+      : premium.cancelAtPeriodEnd
+        ? ` It ends on **${day}** and won't renew.`
+        : ` It renews on **${day}**.`;
+    const pastDue =
+      premium.status === "past_due"
+        ? " Your last payment failed, so please update your card."
+        : "";
+    return embedReply(
+      brandedEmbed({
+        title,
+        description:
+          `Premium is active: uploads up to **${paid}** per file.` +
+          renewal +
+          pastDue,
+      }),
+      [linkRow("Manage subscription", url)],
+    );
+  }
+
+  return embedReply(
+    brandedEmbed({
+      title,
+      description:
+        `Upload files up to **${paid}** each instead of **${free}**, ` +
+        `for **${PREMIUM_PRICE_LABEL}**. Cancel any time.\n` +
+        "The link below opens a secure Stripe checkout and works for one hour.",
+      fields: [
+        { name: "Free", value: `${free} per file`, inline: true },
+        {
+          name: "Premium",
+          value: `${paid} per file · ${PREMIUM_PRICE_LABEL}`,
+          inline: true,
+        },
+      ],
+    }),
+    [linkRow(`Get Premium — ${PREMIUM_PRICE_LABEL}`, url)],
+  );
+}
+
+function linkRow(label: string, url: string) {
+  return { type: 1, components: [{ type: 2, style: 5, label, url }] };
 }
 
 /**

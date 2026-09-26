@@ -37,6 +37,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     redisUrl: "redis://localhost:6379",
     dataDir: mkdtempSync(path.join(tmpdir(), "uploader-")),
     maxFileBytes: 2 * 1024 * 1024,
+    premiumMaxFileBytes: 4 * 1024 * 1024,
     maxTotalBytes: 10 * 1024 * 1024,
     maxUserBytes: 8 * 1024 * 1024,
     rateLimitSessionsPerHour: 20,
@@ -44,15 +45,25 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     adminUserIds: ["979103930309046323"],
     adminGuildId: "",
     commandLogWebhookUrl: "",
+    stripeSecretKey: "sk_test_123",
+    stripeWebhookSecret: "whsec_test",
+    stripePriceId: "",
     port: 3000,
     ...overrides,
   };
 }
 
+export type FetchHandler = (
+  url: string,
+  init?: RequestInit,
+) => Response | undefined;
+
 export interface Harness {
   app: ReturnType<typeof createApp>;
   deps: AppDeps;
   calls: { url: string; body: any }[];
+  /** Answer specific outbound requests; anything it skips gets `{}`. */
+  onFetch: (handler: FetchHandler) => void;
   cleanup: () => void;
 }
 
@@ -67,15 +78,15 @@ export async function makeHarness(
   const redis = new RedisMock() as unknown as Redis;
   await redis.flushall();
   const calls: { url: string; body: any }[] = [];
+  let handler: FetchHandler | null = null;
 
   const fetchImpl = (async (
     url: string | URL | Request,
     init?: RequestInit,
   ) => {
-    calls.push({
-      url: String(url),
-      body: init?.body ? JSON.parse(String(init.body)) : null,
-    });
+    calls.push({ url: String(url), body: parseBody(init?.body) });
+    const custom = handler?.(String(url), init);
+    if (custom) return custom;
     return new Response("{}", {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -88,8 +99,22 @@ export async function makeHarness(
     app: createApp(deps),
     deps,
     calls,
+    onFetch: (h) => {
+      handler = h;
+    },
     cleanup: () => rmSync(config.dataDir, { recursive: true, force: true }),
   };
+}
+
+/** Discord calls send JSON; Stripe calls send form fields. */
+function parseBody(body: RequestInit["body"]): any {
+  if (!body) return null;
+  const text = String(body);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return Object.fromEntries(new URLSearchParams(text));
+  }
 }
 
 export function interactionRequest(

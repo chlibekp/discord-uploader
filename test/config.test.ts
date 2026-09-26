@@ -14,7 +14,8 @@ describe("loadConfig", () => {
   it("applies defaults", () => {
     const config = loadConfig({ ...base });
     expect(config.dataDir).toBe("/data");
-    expect(config.maxFileBytes).toBe(2147483648);
+    expect(config.maxFileBytes).toBe(300 * 1024 * 1024);
+    expect(config.premiumMaxFileBytes).toBe(700 * 1024 * 1024);
     expect(config.maxTotalBytes).toBe(4831838208);
     expect(config.port).toBe(3000);
   });
@@ -56,5 +57,24 @@ describe("loadConfig", () => {
     expect(() => loadConfig({ ...base, MAX_TOTAL_BYTES: "-5" })).toThrow(
       /positive integer/,
     );
+  });
+
+  it("rejects a Premium limit below the free limit", () => {
+    expect(() =>
+      loadConfig({
+        ...base,
+        MAX_FILE_BYTES: "1000",
+        PREMIUM_MAX_FILE_BYTES: "999",
+      }),
+    ).toThrow(/PREMIUM_MAX_FILE_BYTES/);
+  });
+
+  it("leaves Stripe off unless it is configured", () => {
+    const config = loadConfig({ ...base });
+    expect(config.stripeSecretKey).toBe("");
+    expect(config.stripeWebhookSecret).toBe("");
+    expect(
+      loadConfig({ ...base, STRIPE_SECRET_KEY: " sk_live_x " }).stripeSecretKey,
+    ).toBe("sk_live_x");
   });
 });

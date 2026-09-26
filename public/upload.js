@@ -4,6 +4,7 @@ const body = document.body;
 const sid = body.dataset.sid;
 const expiresAt = Number(body.dataset.expiresAt);
 const maxBytes = Number(body.dataset.maxBytes);
+const upgradeHint = body.dataset.upgradeHint ?? "";
 
 const ACCEPTED = new Set([
   "image/png",
@@ -86,7 +87,8 @@ async function select(file) {
   }
   if (file.size > maxBytes) {
     setStatus(
-      `That file is ${formatBytes(file.size)}. The limit is ${formatBytes(maxBytes)}.`,
+      `That file is ${formatBytes(file.size)}. The limit is ${formatBytes(maxBytes)}.` +
+        (upgradeHint ? ` ${upgradeHint}` : ""),
       "error",
     );
     return;

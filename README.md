@@ -1,6 +1,6 @@
 # discord-uploader
 
-A Discord bot: `/upload`, `/gallery`, `/stats`, `/info`, `/support` and `/help`. It is **user-installable**, so it works in
+A Discord bot: `/upload`, `/gallery`, `/stats`, `/premium`, `/info`, `/support` and `/help`. It is **user-installable**, so it works in
 any server, DM, or group DM you are in — the bot does not have to be a member there.
 
 Running `/upload` replies privately with a link to a web upload page. You drop in an
@@ -103,22 +103,60 @@ would have a different disk and 404 on files the first one wrote. `railway.json`
 
 ## Environment
 
-| Variable                       | Required | Default      | Notes                                                                             |
-| ------------------------------ | -------- | ------------ | --------------------------------------------------------------------------------- |
-| `DISCORD_APP_ID`               | yes      |              | Application ID                                                                    |
-| `DISCORD_PUBLIC_KEY`           | yes      |              | 64 hex chars; verifies interaction signatures                                     |
-| `DISCORD_BOT_TOKEN`            | yes      |              | Registration only                                                                 |
-| `PUBLIC_URL`                   | yes      |              | No trailing slash                                                                 |
-| `REDIS_URL`                    | yes      |              | From the Redis plugin                                                             |
-| `DATA_DIR`                     | no       | `/data`      | Volume mount path                                                                 |
-| `MAX_FILE_BYTES`               | no       | `2147483648` | 2 GB per file                                                                     |
-| `MAX_TOTAL_BYTES`              | no       | `4831838208` | 4.5 GB, ~10% under a 5 GB volume                                                  |
-| `MAX_USER_BYTES`               | no       | `2147483648` | 2 GB cap on one uploader's live files                                             |
-| `RATE_LIMIT_SESSIONS_PER_HOUR` | no       | `150`        | Max `/upload` + `/gallery` links one user may mint per rolling hour. `0` disables |
-| `RATE_LIMIT_UPLOADS_PER_HOUR`  | no       | `30`         | Max files one user may upload per rolling hour. `0` disables                      |
-| `ADMIN_USER_IDS`               | no       | operator id  | Comma-separated Discord user ids allowed to run `/admin`                          |
-| `ADMIN_GUILD_ID`               | no       |              | Guild `/admin` is registered to. Unset means `/admin` is never registered         |
-| `PORT`                         | no       | `3000`       | Set by Railway                                                                    |
+| Variable                       | Required | Default      | Notes                                                                              |
+| ------------------------------ | -------- | ------------ | ---------------------------------------------------------------------------------- |
+| `DISCORD_APP_ID`               | yes      |              | Application ID                                                                     |
+| `DISCORD_PUBLIC_KEY`           | yes      |              | 64 hex chars; verifies interaction signatures                                      |
+| `DISCORD_BOT_TOKEN`            | yes      |              | Registration only                                                                  |
+| `PUBLIC_URL`                   | yes      |              | No trailing slash                                                                  |
+| `REDIS_URL`                    | yes      |              | From the Redis plugin                                                              |
+| `DATA_DIR`                     | no       | `/data`      | Volume mount path                                                                  |
+| `MAX_FILE_BYTES`               | no       | `314572800`  | 300 MB per file on the free plan                                                   |
+| `PREMIUM_MAX_FILE_BYTES`       | no       | `734003200`  | 700 MB per file with Premium. Must be at least `MAX_FILE_BYTES`                    |
+| `MAX_TOTAL_BYTES`              | no       | `4831838208` | 4.5 GB, ~10% under a 5 GB volume                                                   |
+| `MAX_USER_BYTES`               | no       | `2147483648` | 2 GB cap on one uploader's live files                                              |
+| `RATE_LIMIT_SESSIONS_PER_HOUR` | no       | `150`        | Max `/upload` + `/gallery` links one user may mint per rolling hour. `0` disables  |
+| `RATE_LIMIT_UPLOADS_PER_HOUR`  | no       | `30`         | Max files one user may upload per rolling hour. `0` disables                       |
+| `ADMIN_USER_IDS`               | no       | operator id  | Comma-separated Discord user ids allowed to run `/admin`                           |
+| `ADMIN_GUILD_ID`               | no       |              | Guild `/admin` is registered to. Unset means `/admin` is never registered          |
+| `STRIPE_SECRET_KEY`            | no       |              | Stripe API key. Premium checkout is off unless this and the webhook secret are set |
+| `STRIPE_WEBHOOK_SECRET`        | no       |              | Signing secret of the `/stripe/webhook` endpoint                                   |
+| `STRIPE_PRICE_ID`              | no       |              | Pre-created €1/month recurring Price. Unset uses an inline €1/month price          |
+| `PORT`                         | no       | `3000`       | Set by Railway                                                                     |
+
+### Premium
+
+Free users can upload files up to **300 MB** each; Premium raises that to **700 MB**
+for **€1/month**, billed through Stripe. `/premium` shows the caller's plan and a
+button: a free user is sent to a Stripe Checkout subscription, a subscriber to the
+Stripe billing portal to change their card or cancel. The button points at
+`/p/:token`, a link good for one hour that only creates the Checkout session once it
+is opened, so the command itself never waits on Stripe.
+
+The Discord user id travels as the Checkout `client_reference_id` and as subscription
+metadata. `POST /stripe/webhook` verifies the `Stripe-Signature` header, then fetches
+the subscription fresh from Stripe and stores its status in Redis
+(`premium:{userId}`), so out-of-order or replayed events always settle on the current
+state. `active`, `trialing` and `past_due` count as Premium; past-due is kept so a
+failed renewal is not cut off while Stripe retries the card. A cancelled subscription
+stays Premium until the end of the paid period.
+
+The limit is looked up per request: the upload page is told the uploader's own
+ceiling, and `POST /u/:sid/file` enforces it while streaming. A free user who goes
+over is told Premium exists; the link is not spent when the declared size is already
+too big, so they can pick a smaller file.
+
+To set it up in the Stripe dashboard:
+
+1. Copy the secret key into `STRIPE_SECRET_KEY`.
+2. Add a webhook endpoint at `https://<your-domain>/stripe/webhook` for
+   `checkout.session.completed`, `customer.subscription.created`,
+   `customer.subscription.updated` and `customer.subscription.deleted`, and copy its
+   signing secret into `STRIPE_WEBHOOK_SECRET`.
+3. Save the Customer Portal settings once (_Settings → Billing → Customer portal_),
+   with cancellation enabled. Stripe refuses to open the portal until it is configured.
+4. Optionally create a €1/month recurring Price and set `STRIPE_PRICE_ID`; otherwise
+   Checkout uses an inline €1/month price on a product named "ImageUploader Premium".
 
 ### Admin dashboard
 
@@ -188,6 +226,10 @@ then served as script from this origin.
 | `POST /u/:sid/file`     | Streaming upload                          |
 | `GET /f/:id/:name`      | Serves the file, with Range support       |
 | `GET /v/:id`            | OG player page for videos                 |
+| `GET /p/:token`         | Redirects to Stripe Checkout or portal    |
+| `GET /premium/success`  | Where Stripe returns after checkout       |
+| `GET /premium/cancel`   | Where Stripe returns on a cancelled one   |
+| `POST /stripe/webhook`  | Stripe subscription events                |
 | `GET /healthz`          | Railway healthcheck                       |
 | `GET /api/stats`        | Public usage counters                     |
 | `GET /metrics`          | Prometheus scrape target                  |

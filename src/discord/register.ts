@@ -64,6 +64,14 @@ export const SUPPORT_COMMAND = {
   contexts: CONTEXTS,
 } as const;
 
+export const PREMIUM_COMMAND = {
+  name: "premium",
+  description: "Get Premium for bigger uploads, or manage your subscription",
+  type: 1,
+  integration_types: INTEGRATION_TYPES,
+  contexts: CONTEXTS,
+} as const;
+
 /**
  * Guild-scoped, so it is only visible in the operator's own server. Discord has
  * no per-user command visibility, so the handler checks the invoking user id as
@@ -82,6 +90,7 @@ export const COMMANDS = [
   INFO_COMMAND,
   STATS_COMMAND,
   SUPPORT_COMMAND,
+  PREMIUM_COMMAND,
 ];
 
 /**

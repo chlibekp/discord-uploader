@@ -5,7 +5,10 @@ export interface Config {
   publicUrl: string;
   redisUrl: string;
   dataDir: string;
+  /** Per-file ceiling for users without Premium. */
   maxFileBytes: number;
+  /** Per-file ceiling for users with an active Premium subscription. */
+  premiumMaxFileBytes: number;
   maxTotalBytes: number;
   /** Ceiling on the combined size of one uploader's live files. */
   maxUserBytes: number;
@@ -19,12 +22,19 @@ export interface Config {
   adminGuildId: string;
   /** Optional Discord webhook URL for logging command executions. Empty means disabled. */
   commandLogWebhookUrl: string;
+  /** Stripe secret API key. Premium checkout is off unless this and the webhook secret are set. */
+  stripeSecretKey: string;
+  /** Signing secret of the Stripe webhook endpoint pointed at /stripe/webhook. */
+  stripeWebhookSecret: string;
+  /** Optional pre-created recurring Price. Empty means an inline €1/month price is used. */
+  stripePriceId: string;
   port: number;
 }
 
 const DEFAULTS = {
   DATA_DIR: "/data",
-  MAX_FILE_BYTES: "2147483648",
+  MAX_FILE_BYTES: "314572800",
+  PREMIUM_MAX_FILE_BYTES: "734003200",
   MAX_TOTAL_BYTES: "4831838208",
   MAX_USER_BYTES: "2147483648",
   RATE_LIMIT_SESSIONS_PER_HOUR: "150",
@@ -88,6 +98,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     );
   }
 
+  const maxFileBytes = positiveInt(
+    env,
+    "MAX_FILE_BYTES",
+    DEFAULTS.MAX_FILE_BYTES,
+  );
+  const premiumMaxFileBytes = positiveInt(
+    env,
+    "PREMIUM_MAX_FILE_BYTES",
+    DEFAULTS.PREMIUM_MAX_FILE_BYTES,
+  );
+  if (premiumMaxFileBytes < maxFileBytes) {
+    throw new ConfigError(
+      "PREMIUM_MAX_FILE_BYTES must not be smaller than MAX_FILE_BYTES",
+    );
+  }
+
   return {
     discordAppId: required(env, "DISCORD_APP_ID"),
     discordPublicKey: publicKey.toLowerCase(),
@@ -95,7 +121,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     publicUrl,
     redisUrl: required(env, "REDIS_URL"),
     dataDir: env.DATA_DIR?.trim() || DEFAULTS.DATA_DIR,
-    maxFileBytes: positiveInt(env, "MAX_FILE_BYTES", DEFAULTS.MAX_FILE_BYTES),
+    maxFileBytes,
+    premiumMaxFileBytes,
     maxTotalBytes: positiveInt(
       env,
       "MAX_TOTAL_BYTES",
@@ -118,6 +145,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       .filter(Boolean),
     adminGuildId: env.ADMIN_GUILD_ID?.trim() || "",
     commandLogWebhookUrl: env.COMMAND_LOG_WEBHOOK_URL?.trim() || "",
+    stripeSecretKey: env.STRIPE_SECRET_KEY?.trim() || "",
+    stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET?.trim() || "",
+    stripePriceId: env.STRIPE_PRICE_ID?.trim() || "",
     port: positiveInt(env, "PORT", DEFAULTS.PORT),
   };
 }

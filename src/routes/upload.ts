@@ -14,8 +14,10 @@ import {
   postFollowup,
   watchUrl,
 } from "../discord/followup.js";
+import { formatBytes } from "../discord/embeds.js";
 import { requestNodeStream } from "../http/body.js";
 import { sweep } from "../storage/lru.js";
+import { fileLimitFor } from "../storage/premium.js";
 import { checkRateLimit, minutesUntil } from "../storage/ratelimit.js";
 import {
   claimSession,
@@ -57,10 +59,15 @@ export function uploadRoutes(deps: AppDeps): Hono {
       });
     }
 
+    const limit = await fileLimitFor(deps.redis, deps.config, session.userId);
     const html = assets.uploadHtml
       .replaceAll("{{SID}}", session.sid)
       .replaceAll("{{EXPIRES_AT}}", String(session.expiresAt))
-      .replaceAll("{{MAX_FILE_BYTES}}", String(deps.config.maxFileBytes));
+      .replaceAll("{{MAX_FILE_BYTES}}", String(limit.maxBytes))
+      .replaceAll(
+        "{{UPGRADE_HINT}}",
+        limit.premium ? "" : upgradeHint(deps.config),
+      );
 
     return c.html(html, 200, {
       "Content-Security-Policy": UPLOAD_PAGE_CSP,
@@ -71,15 +78,22 @@ export function uploadRoutes(deps: AppDeps): Hono {
   app.post("/u/:sid/file", async (c) => {
     const sid = c.req.param("sid");
 
+    // Peeked rather than claimed, so a request that is declared oversized or
+    // is rate-limited leaves the single-use link intact for the caller to
+    // retry instead of burning it here. The size limit depends on who opened
+    // the link; without a live session the claim below fails anyway, so the
+    // widest ceiling is enough to bound the request.
+    const peeked = await getSession(deps.redis, sid);
+    const limit =
+      peeked && peeked.kind === "upload"
+        ? await fileLimitFor(deps.redis, deps.config, peeked.userId)
+        : { premium: true, maxBytes: deps.config.premiumMaxFileBytes };
+
     const declared = Number(c.req.header("content-length") ?? 0);
-    if (declared > deps.config.maxFileBytes + 64 * 1024) {
-      return c.json({ error: "File exceeds the size limit" }, 413);
+    if (declared > limit.maxBytes + 64 * 1024) {
+      return c.json({ error: tooLargeMessage(deps, limit) }, 413);
     }
 
-    // Peeked rather than claimed, so a rate-limited request leaves the
-    // single-use link intact for the caller to retry once the window turns
-    // over instead of burning it here.
-    const peeked = await getSession(deps.redis, sid);
     if (peeked && peeked.kind === "upload") {
       const limit = await checkRateLimit(
         deps.redis,
@@ -116,7 +130,9 @@ export function uploadRoutes(deps: AppDeps): Hono {
 
     let received: Awaited<ReturnType<typeof receiveUpload>>;
     try {
-      received = await receiveUpload(c, deps, dir);
+      received = await receiveUpload(c, dir, limit.maxBytes, () =>
+        tooLargeMessage(deps, limit),
+      );
     } catch (err) {
       await rm(dir, { recursive: true, force: true });
       if (err instanceof UploadError)
@@ -236,8 +252,9 @@ interface ReceivedUpload {
  */
 async function receiveUpload(
   c: Parameters<typeof requestNodeStream>[0],
-  deps: AppDeps,
   dir: string,
+  maxBytes: number,
+  tooLarge: () => string,
 ): Promise<ReceivedUpload> {
   const contentType = c.req.header("content-type");
   if (!contentType?.includes("multipart/form-data")) {
@@ -271,8 +288,8 @@ async function receiveUpload(
         const inspect = new Transform({
           transform(chunk: Buffer, _enc, cb) {
             size += chunk.length;
-            if (size > deps.config.maxFileBytes) {
-              cb(new UploadError(413, "File exceeds the size limit"));
+            if (size > maxBytes) {
+              cb(new UploadError(413, tooLarge()));
               return;
             }
             if (!type) {
@@ -336,6 +353,19 @@ function dimension(raw: string | undefined, fallback: number): number {
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0 || value > 100_000) return fallback;
   return Math.round(value);
+}
+
+/** Free users are told Premium exists; subscribers only see their ceiling. */
+function tooLargeMessage(
+  deps: AppDeps,
+  limit: { premium: boolean; maxBytes: number },
+): string {
+  const base = `File exceeds the ${formatBytes(limit.maxBytes)} size limit.`;
+  return limit.premium ? base : `${base} ${upgradeHint(deps.config)}`;
+}
+
+function upgradeHint(config: AppDeps["config"]): string {
+  return `Premium raises it to ${formatBytes(config.premiumMaxFileBytes)} per file: run /premium in Discord.`;
 }
 
 function expiredPage(): string {

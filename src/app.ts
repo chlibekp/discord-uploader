@@ -7,6 +7,7 @@ import { galleryRoutes } from "./routes/gallery.js";
 import { healthRoutes } from "./routes/health.js";
 import { interactionsRoutes } from "./routes/interactions.js";
 import { metricsRoutes } from "./routes/metrics.js";
+import { premiumRoutes } from "./routes/premium.js";
 import { statsRoutes } from "./routes/stats.js";
 import { uploadRoutes } from "./routes/upload.js";
 
@@ -28,6 +29,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route("/", uploadRoutes(deps));
   app.route("/", galleryRoutes(deps));
   app.route("/", fileRoutes(deps));
+  app.route("/", premiumRoutes(deps));
 
   app.get("/", (c) => c.text("discord-uploader: run /upload in Discord."));
 
