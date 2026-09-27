@@ -8,6 +8,7 @@ import {
   type MouseEvent,
 } from "react";
 import type { ApiFile, ApiUsage } from "@server/me/types";
+import { navigate as astroNavigate } from "astro:transitions/client";
 import { filterRecords, sortRecords } from "../../../public/gallery-filters.js";
 import { deleteFile, deleteFiles } from "../lib/api";
 import { formatBytes } from "../lib/format";
@@ -119,6 +120,19 @@ export default function FilesView({
   live.current = { selecting, order };
 
   // ----- lightbox <-> URL hash: Back closes it, reload reopens it -----
+  //
+  // The hash push on open goes through Astro's own `navigate()` rather than a
+  // raw `location.hash =` assignment. ClientRouter tracks its own idea of the
+  // "current" URL (`originalLocation`) and only updates it when a transition
+  // goes through that API; a raw hash assignment leaves it stale. When Close
+  // later calls `history.back()`, ClientRouter's popstate handler compares
+  // against that stale URL, decides this isn't a same-page hash-only change,
+  // and does a full fetch-and-swap of /dashboard — destroying and
+  // rehydrating the whole page (losing focus and any in-memory UI state)
+  // instead of the cheap in-place update it supports for this exact case.
+  // Routing the open through `navigate()` keeps its bookkeeping in sync, so
+  // the later back-navigation takes ClientRouter's same-page fast path (no
+  // fetch, no DOM replacement) and focus restoration on close survives.
   const pushed = useRef(false);
   useEffect(() => {
     const read = () => {
@@ -132,10 +146,11 @@ export default function FilesView({
   }, []);
   const open = useCallback((id: string) => {
     pushed.current = true;
-    location.hash = `f=${encodeURIComponent(id)}`;
+    void astroNavigate(`#f=${encodeURIComponent(id)}`);
+    setOpenId(id);
   }, []);
   const navigate = useCallback((id: string) => {
-    history.replaceState(history.state, "", `#f=${encodeURIComponent(id)}`);
+    void astroNavigate(`#f=${encodeURIComponent(id)}`, { history: "replace" });
     setOpenId(id);
   }, []);
   const close = useCallback(() => {
