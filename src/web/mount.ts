@@ -4,14 +4,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { AppDeps } from "../app.js";
+import type { AuthUser } from "../auth/types.js";
 
-/** Replaced by the import from ../auth/types.js in Task 8. */
-export interface AuthUser {
-  id: string;
-  username: string;
-  globalName: string;
-  avatar: string;
-}
+export type { AuthUser };
 
 export interface WebLocals {
   deps: AppDeps;
