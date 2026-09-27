@@ -4,6 +4,8 @@ import Shell from "./Shell.astro";
 import BrandBar from "../components/BrandBar.astro";
 import Toasts from "../islands/Toasts";
 import UserAvatar from "../islands/UserAvatar";
+import UploadTray from "../islands/UploadTray";
+import { limitsFor } from "@server/me/data";
 import "../styles/dashboard.css";
 
 interface Props {
@@ -44,7 +46,7 @@ const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/$
     <a href="/dashboard/usage" aria-current={tab === "usage" ? "page" : undefined}>Usage</a>
   </nav>
   <slot />
-  <slot name="tray" />
+  <UploadTray client:load transition:persist="upload-tray" limits={limitsFor(Astro.locals.deps.config)} />
   <Toasts client:load transition:persist="toasts" />
 </Shell>
 
