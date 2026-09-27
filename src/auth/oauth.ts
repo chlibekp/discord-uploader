@@ -14,7 +14,10 @@ export class OAuthError extends Error {}
  * is as dangerous as "//evil.com"; percent-encoded slashes are decoded first.
  */
 export function safeNext(raw: string | undefined): string {
-  if (!raw) return DEFAULT_NEXT;
+  // The raw value itself must start with "/": otherwise a percent-encoded
+  // slash (e.g. "%2Fdashboard") would decode into one after the fact and
+  // be treated as safe, while browsers never see it as a path.
+  if (!raw || !raw.startsWith("/")) return DEFAULT_NEXT;
   let decoded: string;
   try {
     decoded = decodeURIComponent(raw);
@@ -65,6 +68,9 @@ export function authorizeUrl(config: Config, state: string): string {
     scope: "identify",
     redirect_uri: redirectUri(config),
     state,
+    // Only skips the consent screen for users who already authorized this
+    // app; first-time users still see it regardless.
+    prompt: "none",
   });
   return `https://discord.com/oauth2/authorize?${q}`;
 }
@@ -90,25 +96,25 @@ export async function exchangeCode(
         code,
         redirect_uri: redirectUri(config),
       }),
+      signal: AbortSignal.timeout(10_000),
     });
   } catch (err) {
     throw new OAuthError(`Token request failed: ${(err as Error).message}`);
   }
-  if (!tokenRes.ok)
+  if (!tokenRes.ok) {
+    await tokenRes.body?.cancel();
     throw new OAuthError(`Token exchange returned ${tokenRes.status}`);
+  }
 
-  let token: { access_token?: string; token_type?: string };
+  let token: { access_token?: string; token_type?: string } | null;
   try {
-    token = (await tokenRes.json()) as {
-      access_token?: string;
-      token_type?: string;
-    };
+    token = (await tokenRes.json()) as typeof token;
   } catch (err) {
     throw new OAuthError(
       `Token response was not valid JSON: ${(err as Error).message}`,
     );
   }
-  if (!token.access_token)
+  if (!token?.access_token)
     throw new OAuthError("Token response had no access_token");
 
   let meRes: Response;
@@ -117,18 +123,22 @@ export async function exchangeCode(
       headers: {
         Authorization: `${token.token_type ?? "Bearer"} ${token.access_token}`,
       },
+      signal: AbortSignal.timeout(10_000),
     });
   } catch (err) {
     throw new OAuthError(`/users/@me failed: ${(err as Error).message}`);
   }
-  if (!meRes.ok) throw new OAuthError(`/users/@me returned ${meRes.status}`);
+  if (!meRes.ok) {
+    await meRes.body?.cancel();
+    throw new OAuthError(`/users/@me returned ${meRes.status}`);
+  }
 
   let me: {
     id?: string;
     username?: string;
     global_name?: string | null;
     avatar?: string | null;
-  };
+  } | null;
   try {
     me = (await meRes.json()) as typeof me;
   } catch (err) {
@@ -136,7 +146,7 @@ export async function exchangeCode(
       `/users/@me response was not valid JSON: ${(err as Error).message}`,
     );
   }
-  if (!me.id) throw new OAuthError("/users/@me had no id");
+  if (!me?.id) throw new OAuthError("/users/@me had no id");
   return {
     id: me.id,
     username: me.username ?? "",

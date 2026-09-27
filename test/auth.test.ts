@@ -38,6 +38,12 @@ describe("safeNext", () => {
     ["/%2F%2Fevil.com", "/dashboard"],
     ["dashboard", "/dashboard"],
     ["/ok#frag", "/ok#frag"],
+    // The raw value must itself start with "/": a percent-encoded slash
+    // must not be decoded into one after the fact.
+    ["%2Fdashboard", "/dashboard"],
+    ["/%5Cevil.com", "/dashboard"],
+    ["/\t/evil.com", "/dashboard"],
+    ["/%zz", "/dashboard"],
   ])("%s -> %s", (input, expected) => {
     expect(safeNext(input)).toBe(expected);
   });
@@ -92,6 +98,30 @@ describe("auth sessions", () => {
     expect(await readAuthSession(h.deps.redis, b)).toBeNull();
     expect(await readAuthSession(h.deps.redis, c)).toBeNull();
   });
+
+  it("does not drop a session that finishes signing in mid-call", async () => {
+    h = await makeHarness();
+    const a = await createAuthSession(h.deps.redis, alice);
+    const originalSmembers = h.deps.redis.smembers.bind(h.deps.redis);
+    let created: string | undefined;
+    h.deps.redis.smembers = (async (key: string) => {
+      const snapshot = await originalSmembers(key);
+      // A second login finishes here, after the set is read but before it
+      // is trimmed: its digest must survive being SREM'd for digests that
+      // were never part of this snapshot.
+      created = await createAuthSession(h.deps.redis, alice);
+      return snapshot;
+    }) as typeof h.deps.redis.smembers;
+
+    const ended = await deleteAllAuthSessions(h.deps.redis, alice.id);
+
+    expect(ended).toBe(1);
+    expect(await readAuthSession(h.deps.redis, a)).toBeNull();
+    expect(await readAuthSession(h.deps.redis, created!)).not.toBeNull();
+    expect(
+      await h.deps.redis.sismember(`auth:user:${alice.id}`, digest(created!)),
+    ).toBe(1);
+  });
 });
 
 describe("oauth state", () => {
@@ -117,6 +147,9 @@ describe("oauth state", () => {
     expect(url.searchParams.get("redirect_uri")).toBe(
       "https://uploader.test/auth/callback",
     );
+    // Discord only skips the consent screen for users who already
+    // authorized; first-time users still see it either way.
+    expect(url.searchParams.get("prompt")).toBe("none");
   });
 });
 
@@ -158,6 +191,44 @@ describe("exchangeCode", () => {
         ? new Response("no", { status: 500 })
         : undefined,
     );
+    await expect(
+      exchangeCode(h.deps.config, h.deps.fetch, "x"),
+    ).rejects.toBeInstanceOf(OAuthError);
+  });
+
+  it("throws OAuthError when /users/@me is not OK", async () => {
+    h = await makeHarness();
+    h.respond.push((url) =>
+      url.endsWith("/oauth2/token")
+        ? Response.json({ access_token: "at" })
+        : undefined,
+    );
+    h.respond.push((url) =>
+      url.endsWith("/users/@me")
+        ? new Response("no", { status: 500 })
+        : undefined,
+    );
+    await expect(
+      exchangeCode(h.deps.config, h.deps.fetch, "x"),
+    ).rejects.toBeInstanceOf(OAuthError);
+  });
+
+  it("throws OAuthError when the token body is null", async () => {
+    h = await makeHarness();
+    h.respond.push((url) =>
+      url.endsWith("/oauth2/token") ? Response.json(null) : undefined,
+    );
+    await expect(
+      exchangeCode(h.deps.config, h.deps.fetch, "x"),
+    ).rejects.toBeInstanceOf(OAuthError);
+  });
+
+  it("throws OAuthError when the token request itself rejects", async () => {
+    h = await makeHarness();
+    h.respond.push((url) => {
+      if (url.endsWith("/oauth2/token")) throw new Error("network down");
+      return undefined;
+    });
     await expect(
       exchangeCode(h.deps.config, h.deps.fetch, "x"),
     ).rejects.toBeInstanceOf(OAuthError);

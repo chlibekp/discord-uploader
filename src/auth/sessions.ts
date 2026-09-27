@@ -46,9 +46,13 @@ export async function readAuthSession(
 ): Promise<{ user: AuthUser; refreshed: boolean } | null> {
   if (!token) return null;
   const d = digest(token);
-  const raw = await redis.hgetall(key(d));
+  // HGETALL + TTL in one round trip: hgetall returns {} for a missing key,
+  // so there is no separate existence check to get wrong.
+  const results = await redis.pipeline().hgetall(key(d)).ttl(key(d)).exec();
+  const raw = (results?.[0]?.[1] ?? {}) as Record<string, string>;
+  const ttl = (results?.[1]?.[1] ?? -2) as number;
   const userId = raw.userId;
-  if (!raw || !userId) return null;
+  if (!userId) return null;
 
   const user: AuthUser = {
     id: userId,
@@ -57,7 +61,6 @@ export async function readAuthSession(
     avatar: raw.avatar ?? "",
   };
 
-  const ttl = await redis.ttl(key(d));
   if (ttl >= 0 && ttl < REFRESH_BELOW_SECONDS) {
     await redis
       .multi()
@@ -81,14 +84,26 @@ export async function deleteAuthSession(
   await tx.exec();
 }
 
-/** "Sign out everywhere". Returns how many live sessions were ended. */
+/**
+ * "Sign out everywhere". Returns how many live sessions were ended.
+ *
+ * Reads the member digests first, then deletes exactly those session keys
+ * and SREMs exactly those digests. A login that finishes between the read
+ * and the SREM adds its own digest to the set concurrently; targeting only
+ * the digests seen in the snapshot (rather than DEL-ing the whole set)
+ * leaves that new session tracked instead of silently dropping it.
+ */
 export async function deleteAllAuthSessions(
   redis: Redis,
   userId: string,
 ): Promise<number> {
   const digests = await redis.smembers(userKey(userId));
-  let ended = 0;
-  for (const d of digests) ended += await redis.del(key(d));
-  await redis.del(userKey(userId));
-  return ended;
+  if (digests.length === 0) return 0;
+  const keys = digests.map(key);
+  const results = await redis
+    .multi()
+    .del(...keys)
+    .srem(userKey(userId), ...digests)
+    .exec();
+  return (results?.[0]?.[1] as number) ?? 0;
 }
