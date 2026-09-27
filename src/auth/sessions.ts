@@ -1,5 +1,6 @@
 import type { Redis } from "ioredis";
 import { createHash, randomBytes } from "node:crypto";
+import { unwrapResult } from "../storage/redis-result.js";
 import type { AuthUser } from "./types.js";
 
 export const AUTH_SESSION_TTL_SECONDS = 30 * 86_400;
@@ -16,20 +17,6 @@ export function digest(token: string): string {
 
 const key = (d: string) => `auth:${d}`;
 const userKey = (userId: string) => `auth:user:${userId}`;
-
-/**
- * ioredis resolves a pipeline/multi `exec()` with one `[err, result]` tuple
- * per queued command even when Redis is unreachable — it does not reject
- * the whole call. Silently treating a missing/errored entry as "no data"
- * would read as "signed out" or "nothing to delete", so every such result
- * is unwrapped here and a failure is re-thrown instead of swallowed.
- */
-function unwrapResult<T>(entry: [Error | null, unknown] | undefined | null): T {
-  if (!entry) throw new Error("Redis command produced no result");
-  const [err, value] = entry;
-  if (err) throw err;
-  return value as T;
-}
 
 export async function createAuthSession(
   redis: Redis,

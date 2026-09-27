@@ -5,6 +5,7 @@ import { ConfigError, loadConfig } from "./config.js";
 import { registerAdminCommand, registerCommands } from "./discord/register.js";
 import { reconcile } from "./storage/lru.js";
 import { ensureDataDir, verifyDataDirWritable } from "./storage/store.js";
+import { markUsageSince, seedUsageFromFiles } from "./storage/usage.js";
 import { loadWebRenderer } from "./web/mount.js";
 
 /**
@@ -37,6 +38,11 @@ async function main() {
   await ensureDataDir(config);
   await verifyDataDirWritable(config);
   await reconcile(redis, config);
+
+  await markUsageSince(redis);
+  const seeded = await seedUsageFromFiles(redis);
+  if (seeded !== null)
+    console.log(`Seeded per-user usage from ${seeded} stored files`);
 
   // Registration failures are logged, not fatal: already-registered commands
   // keep working, and a transient Discord outage should not stop the service.
