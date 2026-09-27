@@ -234,3 +234,210 @@ describe("exchangeCode", () => {
     ).rejects.toBeInstanceOf(OAuthError);
   });
 });
+
+function cookieFrom(res: Response, name: string): string | undefined {
+  const all = res.headers.getSetCookie();
+  const hit = all.find((c) => c.startsWith(`${name}=`));
+  return hit?.split(";")[0]?.slice(name.length + 1);
+}
+
+const ORIGIN = { Origin: "https://uploader.test" };
+
+describe("GET /auth/login", () => {
+  it("redirects to Discord with a state that matches a __Host- cookie", async () => {
+    h = await makeHarness();
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/auth/login?next=/dashboard/usage"),
+    );
+    expect(res.status).toBe(302);
+    const loc = new URL(res.headers.get("location")!);
+    const state = loc.searchParams.get("state")!;
+    expect(cookieFrom(res, "__Host-oauth_state")).toBe(state);
+    const setCookie = res.headers.getSetCookie().join("\n");
+    expect(setCookie).toMatch(/__Host-oauth_state=.*HttpOnly/);
+    expect(setCookie).toMatch(/Secure/);
+    expect(await h.deps.redis.get(`oauth:state:${state}`)).toBe(
+      "/dashboard/usage",
+    );
+  });
+
+  it("goes to /login when sign-in is not configured", async () => {
+    h = await makeHarness({ discordClientSecret: "" });
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/auth/login"),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login");
+  });
+});
+
+describe("GET /auth/callback", () => {
+  function discordOk(h: Harness) {
+    h.respond.push((url) =>
+      url.endsWith("/oauth2/token")
+        ? Response.json({ access_token: "at" })
+        : undefined,
+    );
+    h.respond.push((url) =>
+      url.endsWith("/users/@me")
+        ? Response.json({
+            id: "111",
+            username: "alice",
+            global_name: "Alice",
+            avatar: null,
+          })
+        : undefined,
+    );
+  }
+
+  async function begin(h: Harness, next = "/dashboard") {
+    const res = await h.app.fetch(
+      new Request(
+        `https://uploader.test/auth/login?next=${encodeURIComponent(next)}`,
+      ),
+    );
+    const state = new URL(res.headers.get("location")!).searchParams.get(
+      "state",
+    )!;
+    return state;
+  }
+
+  it("signs in and redirects to next", async () => {
+    h = await makeHarness();
+    discordOk(h);
+    const state = await begin(h, "/dashboard/usage");
+    const res = await h.app.fetch(
+      new Request(`https://uploader.test/auth/callback?code=c&state=${state}`, {
+        headers: { Cookie: `__Host-oauth_state=${state}` },
+      }),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/dashboard/usage");
+    const token = cookieFrom(res, "__Host-session")!;
+    expect(token).toBeTruthy();
+    expect(res.headers.getSetCookie().join("\n")).toMatch(
+      /__Host-session=.*HttpOnly.*|HttpOnly.*__Host-session/s,
+    );
+  });
+
+  it("rejects a state that does not match the cookie", async () => {
+    h = await makeHarness();
+    discordOk(h);
+    const state = await begin(h);
+    const res = await h.app.fetch(
+      new Request(`https://uploader.test/auth/callback?code=c&state=${state}`, {
+        headers: { Cookie: "__Host-oauth_state=other" },
+      }),
+    );
+    expect(res.headers.get("location")).toBe("/login?error=expired");
+  });
+
+  it("rejects a reused state", async () => {
+    h = await makeHarness();
+    discordOk(h);
+    const state = await begin(h);
+    const req = () =>
+      new Request(`https://uploader.test/auth/callback?code=c&state=${state}`, {
+        headers: { Cookie: `__Host-oauth_state=${state}` },
+      });
+    await h.app.fetch(req());
+    const second = await h.app.fetch(req());
+    expect(second.headers.get("location")).toBe("/login?error=expired");
+  });
+
+  it("maps a cancelled consent to error=cancelled", async () => {
+    h = await makeHarness();
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/auth/callback?error=access_denied"),
+    );
+    expect(res.headers.get("location")).toBe("/login?error=cancelled");
+  });
+
+  it("maps a Discord failure to error=discord", async () => {
+    h = await makeHarness();
+    h.respond.push((url) =>
+      url.endsWith("/oauth2/token")
+        ? new Response("x", { status: 500 })
+        : undefined,
+    );
+    const state = await begin(h);
+    const res = await h.app.fetch(
+      new Request(`https://uploader.test/auth/callback?code=c&state=${state}`, {
+        headers: { Cookie: `__Host-oauth_state=${state}` },
+      }),
+    );
+    expect(res.headers.get("location")).toBe("/login?error=discord");
+  });
+});
+
+describe("session cookie handling", () => {
+  it("treats a stale cookie as signed out and clears it", async () => {
+    h = await makeHarness();
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/api/me", {
+        headers: { Cookie: "__Host-session=stale" },
+      }),
+    );
+    expect(res.status).toBe(401);
+    expect(res.headers.getSetCookie().join("\n")).toMatch(
+      /__Host-session=;.*Max-Age=0/,
+    );
+  });
+
+  it("redirects /dashboard to login with next when signed out", async () => {
+    h = await makeHarness();
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/dashboard/usage?range=7d"),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(
+      `/login?next=${encodeURIComponent("/dashboard/usage?range=7d")}`,
+    );
+  });
+
+  it("refuses a cross-origin POST", async () => {
+    h = await makeHarness();
+    const token = await createAuthSession(h.deps.redis, alice);
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/auth/logout", {
+        method: "POST",
+        headers: {
+          Cookie: `__Host-session=${token}`,
+          Origin: "https://evil.test",
+        },
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(await readAuthSession(h.deps.redis, token)).not.toBeNull();
+  });
+
+  it("logs out one session, or all with everywhere=1", async () => {
+    h = await makeHarness();
+    const a = await createAuthSession(h.deps.redis, alice);
+    const b = await createAuthSession(h.deps.redis, alice);
+    const out = await h.app.fetch(
+      new Request("https://uploader.test/auth/logout", {
+        method: "POST",
+        headers: { Cookie: `__Host-session=${a}`, ...ORIGIN },
+      }),
+    );
+    expect(out.status).toBe(302);
+    expect(out.headers.get("location")).toBe("/login?signedout=1");
+    expect(await readAuthSession(h.deps.redis, a)).toBeNull();
+    expect(await readAuthSession(h.deps.redis, b)).not.toBeNull();
+
+    const body = new URLSearchParams({ everywhere: "1" });
+    await h.app.fetch(
+      new Request("https://uploader.test/auth/logout", {
+        method: "POST",
+        body,
+        headers: {
+          Cookie: `__Host-session=${b}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+          ...ORIGIN,
+        },
+      }),
+    );
+    expect(await readAuthSession(h.deps.redis, b)).toBeNull();
+  });
+});
