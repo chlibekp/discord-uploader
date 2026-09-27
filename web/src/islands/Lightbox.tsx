@@ -59,15 +59,27 @@ export default function Lightbox({
         onNavigate(files[index - 1]!.id);
       } else if (e.key === "Tab" && dialog.current) {
         // Keep focus inside the dialog.
-        const focusable =
-          dialog.current.querySelectorAll<HTMLElement>(FOCUSABLE);
+        const focusable = Array.from(
+          dialog.current.querySelectorAll<HTMLElement>(FOCUSABLE),
+        );
         if (focusable.length === 0) return;
         const first = focusable[0]!;
         const last = focusable[focusable.length - 1]!;
-        if (e.shiftKey && document.activeElement === first) {
+        const active = document.activeElement;
+        if (!active || !focusable.includes(active as HTMLElement)) {
+          // Focus isn't on any of the dialog's tabbable elements: it's still
+          // on the dialog root itself (right after open, which sits at
+          // tabIndex -1 and so never matches FOCUSABLE), or it was knocked
+          // out to <body> because whatever held it disappeared — the
+          // prev/next button at a list edge, or ArmButton going `disabled`
+          // mid-delete. Either way, pull it back into the dialog rather than
+          // let Tab/Shift+Tab escape to the page behind.
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && active === first) {
           e.preventDefault();
           last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
+        } else if (!e.shiftKey && active === last) {
           e.preventDefault();
           first.focus();
         }
