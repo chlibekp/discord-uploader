@@ -426,6 +426,10 @@ describe("session cookie handling", () => {
     expect(await readAuthSession(h.deps.redis, a)).toBeNull();
     expect(await readAuthSession(h.deps.redis, b)).not.toBeNull();
 
+    // A third, untouched session: only "everywhere" logout should reach
+    // it. If the everywhere branch were ignored, only the cookie's own
+    // session (b) would be deleted and c would survive.
+    const c = await createAuthSession(h.deps.redis, alice);
     const body = new URLSearchParams({ everywhere: "1" });
     await h.app.fetch(
       new Request("https://uploader.test/auth/logout", {
@@ -439,5 +443,36 @@ describe("session cookie handling", () => {
       }),
     );
     expect(await readAuthSession(h.deps.redis, b)).toBeNull();
+    expect(await readAuthSession(h.deps.redis, c)).toBeNull();
+  });
+
+  it("keeps the session cookie when the Redis read fails", async () => {
+    h = await makeHarness();
+    const token = await createAuthSession(h.deps.redis, alice);
+    const originalPipeline = h.deps.redis.pipeline.bind(h.deps.redis);
+    h.deps.redis.pipeline = (() => {
+      const fake = {
+        hgetall: () => fake,
+        ttl: () => fake,
+        exec: async () => [
+          [new Error("redis down"), undefined],
+          [new Error("redis down"), undefined],
+        ],
+      };
+      return fake;
+    }) as typeof h.deps.redis.pipeline;
+
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/api/me", {
+        headers: { Cookie: `__Host-session=${token}` },
+      }),
+    );
+
+    expect(res.status).toBe(401);
+    expect(res.headers.getSetCookie().join("\n")).not.toMatch(
+      /__Host-session=;/,
+    );
+
+    h.deps.redis.pipeline = originalPipeline;
   });
 });

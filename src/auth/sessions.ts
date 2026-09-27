@@ -17,6 +17,20 @@ export function digest(token: string): string {
 const key = (d: string) => `auth:${d}`;
 const userKey = (userId: string) => `auth:user:${userId}`;
 
+/**
+ * ioredis resolves a pipeline/multi `exec()` with one `[err, result]` tuple
+ * per queued command even when Redis is unreachable — it does not reject
+ * the whole call. Silently treating a missing/errored entry as "no data"
+ * would read as "signed out" or "nothing to delete", so every such result
+ * is unwrapped here and a failure is re-thrown instead of swallowed.
+ */
+function unwrapResult<T>(entry: [Error | null, unknown] | undefined | null): T {
+  if (!entry) throw new Error("Redis command produced no result");
+  const [err, value] = entry;
+  if (err) throw err;
+  return value as T;
+}
+
 export async function createAuthSession(
   redis: Redis,
   user: AuthUser,
@@ -49,8 +63,9 @@ export async function readAuthSession(
   // HGETALL + TTL in one round trip: hgetall returns {} for a missing key,
   // so there is no separate existence check to get wrong.
   const results = await redis.pipeline().hgetall(key(d)).ttl(key(d)).exec();
-  const raw = (results?.[0]?.[1] ?? {}) as Record<string, string>;
-  const ttl = (results?.[1]?.[1] ?? -2) as number;
+  if (!results) throw new Error("Redis pipeline returned no results");
+  const raw = unwrapResult<Record<string, string>>(results[0]);
+  const ttl = unwrapResult<number>(results[1]);
   const userId = raw.userId;
   if (!userId) return null;
 
@@ -105,5 +120,8 @@ export async function deleteAllAuthSessions(
     .del(...keys)
     .srem(userKey(userId), ...digests)
     .exec();
-  return (results?.[0]?.[1] as number) ?? 0;
+  if (!results) throw new Error("Redis multi returned no results");
+  const deleted = unwrapResult<number>(results[0]);
+  unwrapResult<number>(results[1]); // surfaces an SREM failure too
+  return deleted;
 }
