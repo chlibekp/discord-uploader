@@ -25,6 +25,13 @@ export default defineConfig({
   // optimisation; without this, every build logs a spurious sharp error.
   image: { service: passthroughImageService() },
   devToolbar: { enabled: false },
+  security: {
+    csp: {
+      algorithm: "SHA-256",
+      scriptDirective: { resources: ["'self'"] },
+      styleDirective: { resources: ["'self'", "'unsafe-inline'"] },
+    },
+  },
   vite: {
     resolve: {
       alias: { "@server": fileURLToPath(new URL("../src", import.meta.url)) },
