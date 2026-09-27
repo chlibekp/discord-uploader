@@ -17,6 +17,9 @@ const url = fileUrl(deps.config, record);
 if (record.kind === "image") return Astro.redirect(url, 302);
 
 Astro.response.headers.set("Cache-Control", "public, max-age=3600");
+// No CSP on this page (matches the pre-Astro original); "none" tells
+// mount.ts's applyPageCsp to strip whatever Astro's own CSP feature wrote.
+Astro.response.headers.set("x-page-csp", "none");
 const title = record.name;
 
 // Built as one pre-escaped string rather than JSX attribute expressions:

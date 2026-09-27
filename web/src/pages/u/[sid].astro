@@ -9,7 +9,7 @@ const { deps } = Astro.locals;
 const session = await getSession(deps.redis, Astro.params.sid ?? "");
 const live = session !== null && session.kind === "upload";
 
-Astro.response.headers.set("Content-Security-Policy", UPLOAD_PAGE_CSP);
+Astro.response.headers.set("x-page-csp", UPLOAD_PAGE_CSP);
 if (live) Astro.response.headers.set("Cache-Control", "no-store");
 else Astro.response.status = 404;
 ---

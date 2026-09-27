@@ -25,11 +25,25 @@ export default defineConfig({
   // optimisation; without this, every build logs a spurious sharp error.
   image: { service: passthroughImageService() },
   devToolbar: { enabled: false },
+  // Native Astro CSP: the effective policy for routes that don't opt out via
+  // `x-page-csp` (see src/web/csp.ts) — the login and dashboard pages. Astro
+  // adds `script-src`/`style-src` itself from the directives below, plus the
+  // hashes of its own inline island scripts.
   security: {
     csp: {
       algorithm: "SHA-256",
       scriptDirective: { resources: ["'self'"] },
       styleDirective: { resources: ["'self'", "'unsafe-inline'"] },
+      directives: [
+        "default-src 'self'",
+        "img-src 'self' blob: data: https://cdn.discordapp.com",
+        "media-src 'self' blob:",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "form-action 'self' https://discord.com",
+        "base-uri 'none'",
+        "frame-ancestors 'none'",
+      ],
     },
   },
   vite: {

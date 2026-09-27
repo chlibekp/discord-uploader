@@ -10,7 +10,7 @@ import { UPLOAD_PAGE_CSP } from "@server/web/csp";
 import type { FileRecord } from "@server/types";
 
 const { deps } = Astro.locals;
-Astro.response.headers.set("Content-Security-Policy", UPLOAD_PAGE_CSP);
+Astro.response.headers.set("x-page-csp", UPLOAD_PAGE_CSP);
 
 // Rendered in full on this one request, spending the session, so a reload
 // correctly finds a dead link.
