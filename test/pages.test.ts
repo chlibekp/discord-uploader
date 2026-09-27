@@ -186,3 +186,31 @@ describe("/dashboard shell", () => {
     );
   });
 });
+
+describe("/dashboard files", () => {
+  it("server-renders my tiles and escapes hostile names in markup and props", async () => {
+    h = await makeHarness();
+    await seed({ userId: "7" });
+    const t = await createAuthSession(h.deps.redis, {
+      id: "7",
+      username: "neo",
+      globalName: "",
+      avatar: "",
+    });
+    const html = await (
+      await h.app.fetch(
+        new Request("https://uploader.test/dashboard", {
+          headers: { Cookie: `__Host-session=${t}` },
+        }),
+      )
+    ).text();
+    expect(html).toContain('data-id="evilevilevilevilevilev"');
+    // Island props are serialized into a double-quoted attribute that escapes
+    // only `&` and `"`, so the raw name is legitimately (and inertly) there.
+    // Outside attribute values, it must never appear as live markup.
+    const outsideAttrs = html.replace(/="[^"]*"/g, '=""');
+    expect(outsideAttrs).not.toContain("<img src=x onerror");
+    // The server-rendered tile shows the name as escaped text.
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+  });
+});

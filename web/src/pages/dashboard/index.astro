@@ -1,8 +1,15 @@
 ---
 import Dashboard from "../../layouts/Dashboard.astro";
+import FilesView from "../../islands/FilesView";
+import { getMyUsage, listMyFiles } from "@server/me/data";
 import { dashboardHeaders } from "../../lib/server/headers";
-if (!Astro.locals.user) return Astro.redirect("/login?next=%2Fdashboard", 302);
+
+const { deps, user } = Astro.locals;
+if (!user) return Astro.redirect("/login?next=%2Fdashboard", 302);
 dashboardHeaders(Astro.response.headers);
+const [files, summary] = await Promise.all([listMyFiles(deps, user.id), getMyUsage(deps, user.id, "7d")]);
 ---
 
-<Dashboard title="Dashboard" tab="files"><main class="empty"><h2>Files</h2></main></Dashboard>
+<Dashboard title="Dashboard" tab="files">
+  <FilesView client:load initialFiles={files} initialSummary={summary} renderedAt={Date.now()} />
+</Dashboard>
