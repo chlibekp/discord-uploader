@@ -85,8 +85,25 @@ export function webRoutes(
       deps,
       user: c.get("user") ?? null,
     });
-    return res ?? c.text("Not found", 404);
+    return res ? withHtmlCharset(res) : c.text("Not found", 404);
   });
 
   return app;
+}
+
+/**
+ * Astro sends a bare `text/html`. A scraper that ignores `<meta charset>`
+ * (Discord reads the OG tags on /v/:id) could misdecode non-ASCII filenames,
+ * so restore the charset the Hono pages always sent. Headers can be
+ * immutable, hence a new Response rather than a set().
+ */
+function withHtmlCharset(res: Response): Response {
+  if (res.headers.get("Content-Type") !== "text/html") return res;
+  const headers = new Headers(res.headers);
+  headers.set("Content-Type", "text/html; charset=UTF-8");
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
 }
