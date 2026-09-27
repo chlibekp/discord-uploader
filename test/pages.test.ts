@@ -5,6 +5,7 @@ import { makeHarness, type Harness } from "./helpers.js";
 import { createSession } from "../src/storage/sessions.js";
 import { fileDir, saveRecord } from "../src/storage/store.js";
 import type { FileRecord } from "../src/types.js";
+import { createAuthSession } from "../src/auth/sessions.js";
 
 let h: Harness;
 afterEach(() => h?.cleanup());
@@ -69,5 +70,68 @@ describe("page escaping", () => {
     );
     const html = await res.text();
     expect(html).not.toContain("<script>x</script>");
+  });
+});
+
+describe("/login", () => {
+  it.each([
+    ["cancelled", 200, "Sign-in cancelled."],
+    ["expired", 400, "That sign-in link expired. Try again."],
+    ["discord", 502, "Discord didn't answer. Try again in a moment."],
+  ])("error=%s renders status %i", async (error, status, message) => {
+    h = await makeHarness();
+    const res = await h.app.fetch(
+      new Request(`https://uploader.test/login?error=${error}`),
+    );
+    expect(res.status).toBe(status);
+    // Astro escapes the apostrophe in "didn't" as &#39;.
+    const pattern = new RegExp(
+      message.replace(/[.?]/g, "\\$&").replace("'", "(&#39;|')"),
+    );
+    expect(await res.text()).toMatch(pattern);
+  });
+
+  it("says sign-in is not set up when there is no client secret", async () => {
+    h = await makeHarness({ discordClientSecret: "" });
+    const html = await (
+      await h.app.fetch(new Request("https://uploader.test/login"))
+    ).text();
+    expect(html).toContain("Sign-in isn");
+    expect(html).not.toContain('action="/auth/login"');
+  });
+
+  it("keeps next on the Discord button, sanitised", async () => {
+    h = await makeHarness();
+    const html = await (
+      await h.app.fetch(
+        new Request("https://uploader.test/login?next=//evil.com"),
+      )
+    ).text();
+    expect(html).toContain('name="next" value="/dashboard"');
+  });
+
+  it("sends a signed-in visitor on to the dashboard", async () => {
+    h = await makeHarness();
+    const t = await createAuthSession(h.deps.redis, {
+      id: "1",
+      username: "a",
+      globalName: "",
+      avatar: "",
+    });
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/login", {
+        headers: { Cookie: `__Host-session=${t}` },
+      }),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/dashboard");
+  });
+
+  it("sets the dashboard CSP header", async () => {
+    h = await makeHarness();
+    const res = await h.app.fetch(new Request("https://uploader.test/login"));
+    expect(res.headers.get("content-security-policy")).toContain(
+      "frame-ancestors 'none'",
+    );
   });
 });

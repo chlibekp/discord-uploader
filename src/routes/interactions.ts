@@ -316,6 +316,17 @@ export function interactionsRoutes(deps: AppDeps): Hono {
                 label: gallery ? "Open gallery" : "Open upload page",
                 url,
               },
+              // Only offered when sign-in works, so the link never dead-ends.
+              ...(deps.config.discordClientSecret
+                ? [
+                    {
+                      type: 2,
+                      style: 5,
+                      label: "Open dashboard",
+                      url: `${deps.config.publicUrl}/dashboard`,
+                    },
+                  ]
+                : []),
             ],
           },
         ],

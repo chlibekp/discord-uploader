@@ -336,6 +336,15 @@ a {
   filter: none;
 }
 
+/* Discord's blurple, for the one button that leaves for discord.com. */
+.button.discord {
+  width: 100%;
+  background: #5865f2;
+}
+.button.discord:hover:not(:disabled) {
+  background: #6d79f5;
+}
+
 .button.small {
   padding: 9px 8px;
   font-size: 10px;

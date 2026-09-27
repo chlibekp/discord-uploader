@@ -1,0 +1,58 @@
+---
+import Shell from "../layouts/Shell.astro";
+import BrandBar from "../components/BrandBar.astro";
+import { safeNext } from "@server/auth/oauth";
+import { dashboardHeaders } from "../lib/server/headers";
+
+const { deps, user } = Astro.locals;
+const next = safeNext(Astro.url.searchParams.get("next") ?? undefined);
+if (user) return Astro.redirect(next, 302);
+
+dashboardHeaders(Astro.response.headers);
+const configured = Boolean(deps.config.discordClientSecret);
+const ERRORS: Record<string, { status: number; message: string }> = {
+  cancelled: { status: 200, message: "Sign-in cancelled." },
+  expired: { status: 400, message: "That sign-in link expired. Try again." },
+  discord: {
+    status: 502,
+    message: "Discord didn't answer. Try again in a moment.",
+  },
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
+if (error) Astro.response.status = error.status;
+const signedOut = Astro.url.searchParams.get("signedout") === "1";
+---
+
+<Shell title="Sign in">
+  <BrandBar name="Sign in" sub="Your uploads, anywhere" />
+  <main class="centered">
+    <div class="card panel">
+      <div class="card-in">
+        <header>
+          <h1>Open your dashboard</h1>
+          <p class="muted">
+            Browse, upload and manage everything you've sent, with your usage
+            at a glance.
+          </p>
+        </header>
+        {signedOut && <p class="status success" role="status">Signed out.</p>}
+        {error && <p class="status error" role="alert">{error.message}</p>}
+        {
+          configured ? (
+            <form method="get" action="/auth/login">
+              <input type="hidden" name="next" value={next} />
+              <button class="button discord" type="submit">
+                Continue with Discord
+              </button>
+            </form>
+          ) : (
+            <p class="status error" role="alert">
+              Sign-in isn't set up on this server.
+            </p>
+          )
+        }
+        <p class="muted">We only read your Discord id, name and avatar.</p>
+      </div>
+    </div>
+  </main>
+</Shell>
