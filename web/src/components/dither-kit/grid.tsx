@@ -1,3 +1,5 @@
+// PATCHED: `tickCount` added for discord-uploader (match YAxis on small integer
+// ranges). Re-apply after re-vendoring.
 "use client"
 
 import { useChartPart } from "./chart-context"
@@ -6,10 +8,12 @@ export function Grid({
   horizontal = true,
   vertical = false,
   strokeDasharray = "3 3",
+  tickCount = 4,
 }: {
   horizontal?: boolean
   vertical?: boolean
   strokeDasharray?: string
+  tickCount?: number
 }) {
   const ctx = useChartPart("Grid")
   if (!ctx.ready) return null
@@ -19,7 +23,7 @@ export function Grid({
     <g className="stroke-border" strokeDasharray={strokeDasharray}>
       {horizontal &&
         ctx.y
-          .ticks(4)
+          .ticks(tickCount)
           .map((t) => (
             <line
               key={`h-${t}`}

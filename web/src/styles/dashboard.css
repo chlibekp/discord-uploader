@@ -546,13 +546,30 @@ body:has(.tray) .select-bar {
   justify-content: space-between;
   gap: var(--step);
 }
+.usage-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--step) calc(var(--step) * 2);
+}
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  /* Two across on a phone, four on a desktop. */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: calc(var(--step) * 2);
+}
+/* Equal-height rows: the inner layer fills its panel, so no border band shows. */
+.stats-grid > .panel,
+.chart-row > .panel {
+  display: grid;
+}
+/* A range-dependent tile while the next range loads. */
+.stale {
+  opacity: 0.5;
 }
 .stat-in {
   display: grid;
+  align-content: start;
   gap: var(--step);
   padding: calc(var(--step) * 2);
 }
@@ -584,9 +601,12 @@ body:has(.tray) .select-bar {
 }
 .chart-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--step);
+  /* A toggle's height, so headings line up with or without one. */
+  min-height: 32px;
 }
 .chart-head h2 {
   margin: 0;
@@ -595,6 +615,19 @@ body:has(.tray) .select-bar {
 .chart-box {
   position: relative;
   height: 240px;
+}
+.chart-fig {
+  height: 100%;
+}
+/* dither-kit assumes Tailwind preflight; strip UA chrome off its legend chips. */
+.chart-fig button {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+/* Its tooltip card: square corners, like every other surface here. */
+.chart-fig .rounded-md {
+  border-radius: 0;
 }
 .chart-empty {
   display: grid;
@@ -606,13 +639,19 @@ body:has(.tray) .select-bar {
 .skeleton {
   position: absolute;
   inset: 0;
+  /* Held back a beat so a fast response never flashes it. */
+  animation: skeleton-in 0.24s steps(3) 0.16s both;
+}
+@keyframes skeleton-in {
+  from {
+    opacity: 0;
+  }
 }
 .limits-in {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: var(--step) calc(var(--step) * 2);
-  padding: calc(var(--step) * 2);
+  gap: calc(var(--step) * 2);
   font-size: 13px;
 }
 
@@ -656,5 +695,9 @@ body:has(.tray) .select-bar {
 @media (prefers-reduced-motion: reduce) {
   .tile.fresh {
     animation: none;
+  }
+  .skeleton {
+    animation-duration: 1ms;
+    animation-timing-function: step-end;
   }
 }

@@ -214,3 +214,27 @@ describe("/dashboard files", () => {
     expect(outsideAttrs).toContain("&lt;img src=x onerror=alert(1)&gt;");
   });
 });
+
+describe("/dashboard/usage", () => {
+  it("renders stat tiles for the requested range", async () => {
+    h = await makeHarness();
+    await seed({ userId: "7", size: 2048 });
+    const t = await createAuthSession(h.deps.redis, {
+      id: "7",
+      username: "neo",
+      globalName: "",
+      avatar: "",
+    });
+    const html = await (
+      await h.app.fetch(
+        new Request("https://uploader.test/dashboard/usage?range=7d", {
+          headers: { Cookie: `__Host-session=${t}` },
+        }),
+      )
+    ).text();
+    expect(html).toContain("Storage");
+    // formatBytes keeps one decimal below 10 units.
+    expect(html).toContain("2.0 KB");
+    expect(html).toMatch(/aria-checked="true"[^>]*>7D/);
+  });
+});
