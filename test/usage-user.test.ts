@@ -136,6 +136,47 @@ describe("per-user usage", () => {
   });
 });
 
+describe("uploads are counted", () => {
+  it("counts a /u/:sid/file upload in today's bucket", async () => {
+    h = await makeHarness();
+    const s = await (
+      await import("../src/storage/sessions.js")
+    ).createSession(h.deps.redis, {
+      kind: "upload",
+      userId: "u9",
+      channelId: "c",
+      guildId: "",
+      interactionToken: "t",
+      ttlMs: 0,
+    });
+    const png = Buffer.from([
+      0x89,
+      0x50,
+      0x4e,
+      0x47,
+      0x0d,
+      0x0a,
+      0x1a,
+      0x0a,
+      ...new Array(64).fill(0),
+    ]);
+    const form = new FormData();
+    form.append("file", new Blob([png], { type: "image/png" }), "a.png");
+    const res = await h.app.fetch(
+      new Request(`https://uploader.test/u/${s.sid}/file`, {
+        method: "POST",
+        body: form,
+      }),
+    );
+    expect(res.status).toBe(200);
+    const today = await h.deps.redis.hgetall(
+      USER_DAY_KEY("u9", utcDay(Date.now())),
+    );
+    expect(today.uploads).toBe("1");
+    expect(Number(today.bytes)).toBe(png.length);
+  });
+});
+
 describe("peekRateLimit", () => {
   it("reports usage without spending any", async () => {
     h = await makeHarness();
