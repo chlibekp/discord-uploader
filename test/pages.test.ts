@@ -211,6 +211,6 @@ describe("/dashboard files", () => {
     const outsideAttrs = html.replace(/="[^"]*"/g, '=""');
     expect(outsideAttrs).not.toContain("<img src=x onerror");
     // The server-rendered tile shows the name as escaped text.
-    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(outsideAttrs).toContain("&lt;img src=x onerror=alert(1)&gt;");
   });
 });

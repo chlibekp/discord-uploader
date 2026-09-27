@@ -12,11 +12,13 @@ export default function ArmButton({
   onConfirm,
   label = "Delete",
   armedLabel = "Delete?",
+  tabIndex,
 }: {
   describe: string;
   onConfirm: () => Promise<void> | void;
   label?: string;
   armedLabel?: string;
+  tabIndex?: number;
 }) {
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -59,6 +61,7 @@ export default function ArmButton({
   return (
     <button
       type="button"
+      tabIndex={tabIndex}
       className={`button small danger${armed ? " armed" : ""}`}
       onClick={click}
       disabled={busy}

@@ -4,9 +4,11 @@ import { toast } from "../lib/toast";
 export default function CopyButton({
   text,
   label,
+  tabIndex,
 }: {
   text: string;
   label: string;
+  tabIndex?: number;
 }) {
   const [copied, setCopied] = useState(false);
   async function click(e: MouseEvent) {
@@ -23,6 +25,7 @@ export default function CopyButton({
   return (
     <button
       type="button"
+      tabIndex={tabIndex}
       className={`button small${copied ? " copied" : ""}`}
       onClick={click}
     >

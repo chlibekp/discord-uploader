@@ -109,6 +109,12 @@ export default function FilesView({
 
   // Tile handlers read this instead of closing over state, so they stay
   // stable and the memoised tiles only re-render when their own props change.
+  // Roving tabindex: the grid is one Tab stop. It stays on the last-focused
+  // tile and falls back to the first visible one when that tile is deleted
+  // or filtered out.
+  const [stop, setStop] = useState<string | null>(null);
+  const tabStop = stop !== null && order.includes(stop) ? stop : order[0];
+
   const live = useRef({ selecting, order });
   live.current = { selecting, order };
 
@@ -382,27 +388,32 @@ export default function FilesView({
               {visible.length} of {files.length}
             </span>
           </div>
+          {/*
+           * One visual row that wraps: the sheet is the grid's single row, so
+           * the ARIA structure is valid while the CSS grid lays tiles out.
+           */}
           <div
-            className="sheet"
-            id="sheet"
             role="grid"
             aria-label="Your uploads"
             aria-multiselectable={selecting || undefined}
-            ref={gridRef}
           >
-            {visible.map((f) => (
-              <FileTile
-                key={f.id}
-                file={f}
-                selecting={selecting}
-                selected={selected.has(f.id)}
-                fresh={fresh.has(f.id)}
-                onActivate={activate}
-                onOpen={open}
-                onDelete={removeFromTile}
-                onKeyDown={tileKeys}
-              />
-            ))}
+            <div className="sheet" id="sheet" role="row" ref={gridRef}>
+              {visible.map((f) => (
+                <FileTile
+                  key={f.id}
+                  file={f}
+                  selecting={selecting}
+                  selected={selected.has(f.id)}
+                  fresh={fresh.has(f.id)}
+                  tabStop={f.id === tabStop}
+                  onActivate={activate}
+                  onOpen={open}
+                  onDelete={removeFromTile}
+                  onKeyDown={tileKeys}
+                  onFocus={setStop}
+                />
+              ))}
+            </div>
           </div>
           {visible.length === 0 && (
             <p className="sheet-empty">No files match that filter.</p>
