@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { rm, mkdir } from "node:fs/promises";
 import { makeHarness } from "../helpers.js";
 import { createSession } from "../../src/storage/sessions.js";
+import { createAuthSession } from "../../src/auth/sessions.js";
 import { seedFixtures, E2E_USER } from "./fixtures.js";
 
 const PORT = 4173;
@@ -37,6 +38,16 @@ root.post("/__e2e/session", async (c) => {
     ttlMs: 0,
   });
   return c.json({ sid: session.sid });
+});
+root.post("/__e2e/login", async (c) => {
+  const id = c.req.query("user") ?? E2E_USER;
+  const token = await createAuthSession(h.deps.redis, {
+    id,
+    username: "e2e",
+    globalName: "E2E",
+    avatar: "",
+  });
+  return c.json({ token });
 });
 root.route("/", h.app);
 

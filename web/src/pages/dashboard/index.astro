@@ -1,0 +1,8 @@
+---
+import Dashboard from "../../layouts/Dashboard.astro";
+import { dashboardHeaders } from "../../lib/server/headers";
+if (!Astro.locals.user) return Astro.redirect("/login?next=%2Fdashboard", 302);
+dashboardHeaders(Astro.response.headers);
+---
+
+<Dashboard title="Dashboard" tab="files"><main class="empty"><h2>Files</h2></main></Dashboard>

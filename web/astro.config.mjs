@@ -1,6 +1,7 @@
 import { defineConfig, passthroughImageService } from "astro/config";
 import { fileURLToPath } from "node:url";
 import react from "@astrojs/react";
+import tailwindcss from "@tailwindcss/vite";
 import honoAdapter from "./adapter/index.mjs";
 
 export default defineConfig({
@@ -47,6 +48,7 @@ export default defineConfig({
     },
   },
   vite: {
+    plugins: [tailwindcss()],
     resolve: {
       alias: { "@server": fileURLToPath(new URL("../src", import.meta.url)) },
     },

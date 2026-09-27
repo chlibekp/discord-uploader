@@ -135,3 +135,54 @@ describe("/login", () => {
     );
   });
 });
+
+describe("/dashboard shell", () => {
+  async function signedIn(
+    user = { id: "7", username: "neo", globalName: "Neo", avatar: "" },
+  ) {
+    return createAuthSession(h.deps.redis, user);
+  }
+
+  it("renders tabs, the account menu and the dashboard CSP", async () => {
+    h = await makeHarness();
+    const t = await signedIn();
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/dashboard", {
+        headers: { Cookie: `__Host-session=${t}` },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-security-policy")).toContain(
+      "https://cdn.discordapp.com",
+    );
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const html = await res.text();
+    expect(html).toContain("@neo");
+    expect(html).toMatch(/<a href="\/dashboard"[^>]*aria-current="page"/);
+    expect(html).toContain('action="/auth/logout"');
+    expect(html).toContain("data-upload-trigger");
+  });
+
+  it("uses the Discord CDN avatar when the user has one", async () => {
+    h = await makeHarness();
+    const t = await signedIn({
+      id: "7",
+      username: "neo",
+      globalName: "",
+      avatar: "a1b2",
+    });
+    const html = await (
+      await h.app.fetch(
+        new Request("https://uploader.test/dashboard/usage", {
+          headers: { Cookie: `__Host-session=${t}` },
+        }),
+      )
+    ).text();
+    expect(html).toContain(
+      "https://cdn.discordapp.com/avatars/7/a1b2.png?size=64",
+    );
+    expect(html).toMatch(
+      /<a href="\/dashboard\/usage"[^>]*aria-current="page"/,
+    );
+  });
+});
