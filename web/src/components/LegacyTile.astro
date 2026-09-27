@@ -1,0 +1,53 @@
+---
+import type { Config } from "@server/config";
+import type { FileRecord } from "@server/types";
+import { fileUrl, watchUrl } from "@server/discord/followup";
+import { formatBytes, formatDate, expiryLabel, escapeHtml } from "@server/web/format";
+interface Props {
+  config: Config;
+  file: FileRecord;
+}
+const { config, file } = Astro.props;
+const direct = fileUrl(config, file);
+// Videos link to the page that carries the player tags; images are their own shareable URL.
+const share = file.kind === "video" ? watchUrl(config, file) : direct;
+const name = escapeHtml(file.name);
+
+// Built as one pre-escaped string, not JSX attribute/text expressions: Astro's
+// attribute serializer leaves `<`/`>` unescaped (harmless in real browsers,
+// since attribute values are not parsed as markup, but it would still leave a
+// raw `<script>`/`<img onerror>` substring in the response body). Matching
+// the legacy Hono markup byte-for-byte here also keeps the e2e screenshots
+// pixel-identical.
+const preview =
+  file.kind === "video"
+    ? `<video preload="metadata" muted playsinline src="${escapeHtml(direct)}#t=0.1"></video>
+<span class="badge">VIDEO</span>`
+    : `<img loading="lazy" decoding="async" src="${escapeHtml(direct)}" alt="${name}">`;
+
+const actions =
+  file.kind === "video"
+    ? `<button class="button small" type="button" data-copy="${escapeHtml(share)}">Copy page</button>
+<button class="button small" type="button" data-copy="${escapeHtml(direct)}">Copy direct</button>`
+    : `<button class="button small" type="button" data-copy="${escapeHtml(direct)}">Copy link</button>`;
+
+const html = `<figure class="tile panel" tabindex="0" role="gridcell" data-tile
+data-id="${file.id}" data-name="${name}" data-size="${file.size}"
+data-created="${file.createdAt}" data-expires="${file.expiresAt}"
+data-href="${escapeHtml(share)}" aria-label="${name}">
+<div class="tile-in">
+<a class="shot" href="${escapeHtml(share)}" target="_blank" rel="noopener" tabindex="-1">${preview}</a>
+<div class="tile-body">
+<figcaption class="tile-name" title="${name}">${name}</figcaption>
+<div class="tile-meta"><span>${formatBytes(file.size)}</span><span>${formatDate(file.createdAt)}</span><span class="tile-expiry" data-expiry>${expiryLabel(file.expiresAt)}</span></div>
+<div class="tile-actions">
+<a class="button small" href="${escapeHtml(share)}" target="_blank" rel="noopener">Open</a>
+${actions}
+<button class="button small danger" type="button" data-delete="${file.id}" data-name="${name}">Delete</button>
+</div>
+</div>
+</div>
+</figure>`;
+---
+
+<Fragment set:html={html} />

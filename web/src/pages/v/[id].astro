@@ -3,6 +3,7 @@ import Shell from "../../layouts/Shell.astro";
 import BrandBar from "../../components/BrandBar.astro";
 import { getRecord } from "@server/storage/store";
 import { fileUrl } from "@server/discord/followup";
+import { escapeHtml } from "@server/web/format";
 
 const { deps } = Astro.locals;
 const record = await getRecord(deps.redis, Astro.params.id ?? "");
@@ -17,24 +18,32 @@ if (record.kind === "image") return Astro.redirect(url, 302);
 
 Astro.response.headers.set("Cache-Control", "public, max-age=3600");
 const title = record.name;
+
+// Built as one pre-escaped string rather than JSX attribute expressions:
+// Astro's attribute serializer leaves `<`/`>` unescaped (harmless in a real
+// browser, since attribute values are not parsed as markup, but it would
+// still leave a raw `<script>` substring in the response body for a hostile
+// filename).
+const escTitle = escapeHtml(title);
+const escUrl = escapeHtml(url);
+const escMime = escapeHtml(record.mime);
+const head = `<meta property="og:type" content="video.other">
+<meta property="og:title" content="${escTitle}">
+<meta property="og:url" content="${escUrl}">
+<meta property="og:video" content="${escUrl}">
+<meta property="og:video:secure_url" content="${escUrl}">
+<meta property="og:video:type" content="${escMime}">
+<meta property="og:video:width" content="${record.width}">
+<meta property="og:video:height" content="${record.height}">
+<meta name="twitter:card" content="player">
+<meta name="twitter:player:stream" content="${escUrl}">
+<meta name="twitter:player:stream:content_type" content="${escMime}">
+<meta name="twitter:player:width" content="${record.width}">
+<meta name="twitter:player:height" content="${record.height}">`;
 ---
 
 <Shell title={title}>
-  <Fragment slot="head">
-    <meta property="og:type" content="video.other" />
-    <meta property="og:title" content={title} />
-    <meta property="og:url" content={url} />
-    <meta property="og:video" content={url} />
-    <meta property="og:video:secure_url" content={url} />
-    <meta property="og:video:type" content={record.mime} />
-    <meta property="og:video:width" content={String(record.width)} />
-    <meta property="og:video:height" content={String(record.height)} />
-    <meta name="twitter:card" content="player" />
-    <meta name="twitter:player:stream" content={url} />
-    <meta name="twitter:player:stream:content_type" content={record.mime} />
-    <meta name="twitter:player:width" content={String(record.width)} />
-    <meta name="twitter:player:height" content={String(record.height)} />
-  </Fragment>
+  <Fragment slot="head" set:html={head} />
   <BrandBar name={title} sub={`${record.width}×${record.height}`} />
   <main class="stage">
     <video controls playsinline preload="metadata" src={url}></video>

@@ -24,7 +24,6 @@ export const assets = {
   uploadJs: readText("upload.js"),
   measureJs: readText("measure.js"),
   uploadCss: readText("upload.css"),
-  galleryHtml: readText("gallery.html"),
   galleryJs: readText("gallery.js"),
   galleryFiltersJs: readText("gallery-filters.js"),
   /** 128px sprite for the brand bar and the favicon. */
