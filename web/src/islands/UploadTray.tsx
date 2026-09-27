@@ -18,6 +18,7 @@ import {
   type QueueItem,
 } from "../lib/queue";
 import { addFile, refreshSummary, summaryStore } from "../lib/state";
+import { ApiError } from "../lib/api";
 import { toast } from "../lib/toast";
 import { uploadFile } from "../lib/uploader";
 import CopyButton from "./CopyButton";
@@ -77,6 +78,8 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
   itemsRef.current = items;
   const files = useRef(new Map<string, File>());
   const running = useRef<{ key: string; abort(): void } | null>(null);
+  /** Names uploaded since the queue last drained, for one summary toast. */
+  const uploaded = useRef<string[]>([]);
   const input = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(true);
   const [dragging, setDragging] = useState(false);
@@ -89,13 +92,6 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
   useEffect(() => {
     if (!summaryStore.get()) void refreshSummary();
   }, []);
-
-  // Cleared rows no longer need their File (or its bytes held in memory).
-  useEffect(() => {
-    const keep = new Set(items.map((i) => i.key));
-    for (const key of files.current.keys())
-      if (!keep.has(key)) files.current.delete(key);
-  }, [items]);
 
   const enqueue = useCallback(
     (list: File[]) => {
@@ -189,16 +185,13 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
         outcome = { type: "done", key: next.key, result };
         addFile(result);
         void refreshSummary();
-        setSaid(`Uploaded ${next.name}`);
+        uploaded.current.push(next.name);
       } catch (err) {
         const error = (err as Error).message;
         outcome = { type: "fail", key: next.key, error };
-        // A cancel already said enough by removing the progress bar.
-        if (
-          itemsRef.current.find((i) => i.key === next.key)?.status !==
-          "cancelled"
-        )
-          setSaid(`${next.name} failed: ${error}`);
+        // The user's own cancel needs no toast; status -1 is an abort.
+        if (!(err instanceof ApiError && err.status === -1))
+          toast(`Couldn't upload ${next.name}: ${error}`, "error", 8000);
       }
       // Free the slot *before* dispatching: the dispatch re-runs this effect,
       // which must see the slot empty to start the next queued file.
@@ -277,6 +270,29 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [busy]);
 
+  // One success toast when the queue drains, not one per file: a batch of
+  // ten would push any error toast out of the four-deep stack, and each row
+  // already shows its own "done".
+  useEffect(() => {
+    if (busy || uploaded.current.length === 0) return;
+    const names = uploaded.current;
+    uploaded.current = [];
+    toast(
+      names.length === 1
+        ? `Uploaded ${names[0]}`
+        : `Uploaded ${names.length} files`,
+      "success",
+    );
+  }, [busy]);
+
+  // Finished rows keep their File until cleared, so Retry can resend it.
+  const clearFinished = () => {
+    for (const i of itemsRef.current)
+      if (i.status !== "queued" && i.status !== "uploading")
+        files.current.delete(i.key);
+    dispatch({ type: "clearFinished" });
+  };
+
   const cancel = (key: string) => {
     if (running.current?.key === key) running.current.abort();
     dispatch({ type: "cancel", key });
@@ -350,7 +366,7 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
               <button
                 type="button"
                 className="button small"
-                onClick={() => dispatch({ type: "clearFinished" })}
+                onClick={clearFinished}
               >
                 Clear
               </button>
