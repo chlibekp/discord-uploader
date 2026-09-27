@@ -6,7 +6,8 @@ import path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { AppDeps } from "../app.js";
-import { UPLOAD_PAGE_CSP, assets } from "../assets.js";
+import { assets } from "../assets.js";
+import { UPLOAD_PAGE_CSP } from "../web/csp.js";
 import { expiredShell } from "../pages.js";
 import {
   buildFollowupPayload,

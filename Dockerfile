@@ -14,6 +14,8 @@ RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY src ./src
+COPY web ./web
+COPY public ./public
 RUN pnpm build
 
 FROM node:22-slim AS prod-deps
@@ -36,6 +38,7 @@ ENV NODE_ENV=production
 #             PORT             (default 3000, set by Railway)
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/web/dist ./web/dist
 COPY package.json ./
 COPY public ./public
 

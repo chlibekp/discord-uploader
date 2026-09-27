@@ -9,12 +9,15 @@ import { interactionsRoutes } from "./routes/interactions.js";
 import { metricsRoutes } from "./routes/metrics.js";
 import { statsRoutes } from "./routes/stats.js";
 import { uploadRoutes } from "./routes/upload.js";
+import { webRoutes, type WebRenderer } from "./web/mount.js";
 
 export interface AppDeps {
   config: Config;
   redis: Redis;
   /** Injected so tests can observe Discord calls without network access. */
   fetch: typeof fetch;
+  /** The built Astro entry. Unset means every page route answers 404. */
+  web?: WebRenderer;
 }
 
 export function createApp(deps: AppDeps): Hono {
@@ -30,6 +33,8 @@ export function createApp(deps: AppDeps): Hono {
   app.route("/", fileRoutes(deps));
 
   app.get("/", (c) => c.text("discord-uploader: run /upload in Discord."));
+  // Must stay the last route: it hands everything unmatched to Astro.
+  app.route("/", webRoutes(deps));
 
   app.onError((err, c) => {
     console.error("Unhandled error:", err);

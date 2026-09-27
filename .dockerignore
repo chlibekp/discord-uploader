@@ -7,3 +7,5 @@ docs
 .env.*
 *.log
 data
+web/dist
+web/.astro

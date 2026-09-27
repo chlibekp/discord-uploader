@@ -11,6 +11,14 @@ import type { Redis } from "ioredis";
 import type { Config } from "../src/config.js";
 import type { AppDeps } from "../src/app.js";
 import { createApp } from "../src/app.js";
+import { loadWebRenderer, type WebRenderer } from "../src/web/mount.js";
+
+let webPromise: Promise<WebRenderer> | null = null;
+/** Loaded once per worker; `pnpm test` builds web/dist first. */
+export function sharedWebRenderer(): Promise<WebRenderer> {
+  webPromise ??= loadWebRenderer();
+  return webPromise;
+}
 
 export const keys = generateKeyPairSync("ed25519");
 
@@ -82,7 +90,12 @@ export async function makeHarness(
     });
   }) as unknown as typeof fetch;
 
-  const deps: AppDeps = { config, redis, fetch: fetchImpl };
+  const deps: AppDeps = {
+    config,
+    redis,
+    fetch: fetchImpl,
+    web: await sharedWebRenderer(),
+  };
 
   return {
     app: createApp(deps),

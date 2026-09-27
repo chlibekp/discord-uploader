@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { AppDeps } from "../app.js";
-import { UPLOAD_PAGE_CSP, assets } from "../assets.js";
+import { assets } from "../assets.js";
+import { UPLOAD_PAGE_CSP } from "../web/csp.js";
 import { fileUrl, watchUrl } from "../discord/followup.js";
 import { expiredShell } from "../pages.js";
 import {

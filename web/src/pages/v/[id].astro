@@ -1,0 +1,42 @@
+---
+import Shell from "../../layouts/Shell.astro";
+import BrandBar from "../../components/BrandBar.astro";
+import { getRecord } from "@server/storage/store";
+import { fileUrl } from "@server/discord/followup";
+
+const { deps } = Astro.locals;
+const record = await getRecord(deps.redis, Astro.params.id ?? "");
+if (!record) {
+  return new Response("Not found", {
+    status: 404,
+    headers: { "Content-Type": "text/plain; charset=UTF-8" },
+  });
+}
+const url = fileUrl(deps.config, record);
+if (record.kind === "image") return Astro.redirect(url, 302);
+
+Astro.response.headers.set("Cache-Control", "public, max-age=3600");
+const title = record.name;
+---
+
+<Shell title={title}>
+  <Fragment slot="head">
+    <meta property="og:type" content="video.other" />
+    <meta property="og:title" content={title} />
+    <meta property="og:url" content={url} />
+    <meta property="og:video" content={url} />
+    <meta property="og:video:secure_url" content={url} />
+    <meta property="og:video:type" content={record.mime} />
+    <meta property="og:video:width" content={String(record.width)} />
+    <meta property="og:video:height" content={String(record.height)} />
+    <meta name="twitter:card" content="player" />
+    <meta name="twitter:player:stream" content={url} />
+    <meta name="twitter:player:stream:content_type" content={record.mime} />
+    <meta name="twitter:player:width" content={String(record.width)} />
+    <meta name="twitter:player:height" content={String(record.height)} />
+  </Fragment>
+  <BrandBar name={title} sub={`${record.width}×${record.height}`} />
+  <main class="stage">
+    <video controls playsinline preload="metadata" src={url}></video>
+  </main>
+</Shell>
