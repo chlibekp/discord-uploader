@@ -144,6 +144,13 @@ async function receiveUpload(
           fields,
         };
       })();
+      // Settle `done` the instant the file pipeline fails, rather than
+      // waiting on busboy's own `close`. Once `pipeline`'s error destroys the
+      // FileStream busboy handed us mid-part, busboy can be left with a
+      // pending internal write callback and never reach `close` on its own —
+      // waiting for it would hang the request forever and leave this
+      // rejection unhandled.
+      filePromise.catch(reject);
     });
 
     bb.on("error", reject);
@@ -158,7 +165,13 @@ async function receiveUpload(
   try {
     await done;
   } catch (err) {
-    source.destroy();
+    // Busboy's own parser can be left stuck (see above), so tear it down
+    // explicitly instead of waiting on it. The rest of the body is drained
+    // rather than the source destroyed, so a real HTTP connection isn't cut
+    // off mid-request and the error response can actually be delivered.
+    source.unpipe(bb);
+    bb.destroy();
+    source.resume();
     throw err;
   }
 

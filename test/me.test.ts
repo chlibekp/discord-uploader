@@ -147,7 +147,7 @@ describe("/api/me", () => {
     const form = new FormData();
     form.append(
       "file",
-      new Blob([Buffer.from("hello world, not an image".repeat(2))], {
+      new Blob([Buffer.from("hello world, not an image".repeat(4))], {
         type: "image/png",
       }),
       "a.png",
