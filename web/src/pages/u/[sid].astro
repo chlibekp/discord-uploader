@@ -1,0 +1,65 @@
+---
+import Shell from "../../layouts/Shell.astro";
+import BrandBar from "../../components/BrandBar.astro";
+import Expired from "../../components/Expired.astro";
+import { getSession } from "@server/storage/sessions";
+import { UPLOAD_PAGE_CSP } from "@server/web/csp";
+
+const { deps } = Astro.locals;
+const session = await getSession(deps.redis, Astro.params.sid ?? "");
+const live = session !== null && session.kind === "upload";
+
+Astro.response.headers.set("Content-Security-Policy", UPLOAD_PAGE_CSP);
+if (live) Astro.response.headers.set("Cache-Control", "no-store");
+else Astro.response.status = 404;
+---
+
+{
+  !live || !session ? (
+    <Expired
+      explanation="This upload link has already been used or has run out of time."
+      command="upload"
+    />
+  ) : (
+    <Shell
+      title="Upload"
+      bodyAttrs={{
+        "data-sid": session.sid,
+        "data-expires-at": String(session.expiresAt),
+        "data-max-bytes": String(deps.config.maxFileBytes),
+      }}
+    >
+      <BrandBar name="Upload" sub="Images and videos">
+        <Fragment slot="end">
+          Expires in <span id="countdown" class="count">--:--</span>
+        </Fragment>
+      </BrandBar>
+      <main class="centered">
+        <div class="card panel">
+          <div class="card-in">
+            <label id="drop" class="drop" for="picker" tabindex="0">
+              <span class="drop-title">Drop a file here</span>
+              <span class="muted">or click to choose</span>
+              <input
+                id="picker"
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp,image/avif,video/mp4,video/webm,video/quicktime"
+                hidden
+              />
+            </label>
+            <section id="preview" class="preview" hidden>
+              <div id="preview-slot" />
+              <p id="filename" class="muted" />
+            </section>
+            <div id="progress-wrap" class="progress" hidden>
+              <div id="progress-bar" class="progress-bar" />
+            </div>
+            <p id="status" class="status" role="status" />
+            <button id="send" class="button" type="button" disabled>Upload</button>
+          </div>
+        </div>
+      </main>
+      <script is:inline type="module" src="/assets/upload.js" />
+    </Shell>
+  )
+}

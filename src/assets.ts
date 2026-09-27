@@ -21,8 +21,8 @@ function readBinary(name: string): Buffer {
 }
 
 export const assets = {
-  uploadHtml: readText("upload.html"),
   uploadJs: readText("upload.js"),
+  measureJs: readText("measure.js"),
   uploadCss: readText("upload.css"),
   galleryHtml: readText("gallery.html"),
   galleryJs: readText("gallery.js"),

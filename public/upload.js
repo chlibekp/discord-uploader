@@ -1,4 +1,4 @@
-"use strict";
+import { readDimensions } from "./measure.js";
 
 const body = document.body;
 const sid = body.dataset.sid;
@@ -46,35 +46,6 @@ function formatBytes(bytes) {
     unit += 1;
   }
   return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
-}
-
-/**
- * Read intrinsic dimensions in the browser. The server has no ffmpeg, and
- * Discord will not render an inline player without og:video width and height.
- */
-function readDimensions(file, url) {
-  return new Promise((resolve) => {
-    const isVideo = file.type.startsWith("video/");
-    const element = document.createElement(isVideo ? "video" : "img");
-    const done = () => {
-      resolve(
-        isVideo
-          ? { width: element.videoWidth, height: element.videoHeight }
-          : { width: element.naturalWidth, height: element.naturalHeight },
-      );
-    };
-    if (isVideo) {
-      element.preload = "metadata";
-      element.muted = true;
-      element.addEventListener("loadedmetadata", done, { once: true });
-    } else {
-      element.addEventListener("load", done, { once: true });
-    }
-    element.addEventListener("error", () => resolve({ width: 0, height: 0 }), {
-      once: true,
-    });
-    element.src = url;
-  });
 }
 
 async function select(file) {

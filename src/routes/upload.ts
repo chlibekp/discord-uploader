@@ -6,9 +6,6 @@ import path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { AppDeps } from "../app.js";
-import { assets } from "../assets.js";
-import { UPLOAD_PAGE_CSP } from "../web/csp.js";
-import { expiredShell } from "../pages.js";
 import {
   buildFollowupPayload,
   fileUrl,
@@ -49,25 +46,6 @@ class UploadError extends Error {
 
 export function uploadRoutes(deps: AppDeps): Hono {
   const app = new Hono();
-
-  app.get("/u/:sid", async (c) => {
-    const session = await getSession(deps.redis, c.req.param("sid"));
-    if (!session || session.kind !== "upload") {
-      return c.html(expiredPage(), 404, {
-        "Content-Security-Policy": UPLOAD_PAGE_CSP,
-      });
-    }
-
-    const html = assets.uploadHtml
-      .replaceAll("{{SID}}", session.sid)
-      .replaceAll("{{EXPIRES_AT}}", String(session.expiresAt))
-      .replaceAll("{{MAX_FILE_BYTES}}", String(deps.config.maxFileBytes));
-
-    return c.html(html, 200, {
-      "Content-Security-Policy": UPLOAD_PAGE_CSP,
-      "Cache-Control": "no-store",
-    });
-  });
 
   app.post("/u/:sid/file", async (c) => {
     const sid = c.req.param("sid");
@@ -337,11 +315,4 @@ function dimension(raw: string | undefined, fallback: number): number {
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0 || value > 100_000) return fallback;
   return Math.round(value);
-}
-
-function expiredPage(): string {
-  return expiredShell(
-    "This upload link has already been used or has run out of time.",
-    "upload",
-  );
 }
