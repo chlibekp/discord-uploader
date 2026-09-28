@@ -172,12 +172,11 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
       URL.revokeObjectURL(url);
       // Cancelled while measuring: free the slot, then nudge the effect (a
       // progress action always yields a new array) so the next file starts.
-      // The abort flag is checked first because the cancel dispatch may not
-      // have rendered into itemsRef yet.
-      if (
-        measuring.signal.aborted ||
-        itemsRef.current.find((i) => i.key === next.key)?.status !== "uploading"
-      ) {
+      // Only the abort flag can say so. itemsRef is refreshed on render, and a
+      // fast measurement can finish before the "start" above has rendered, so
+      // reading the row's status there saw "queued", bailed out, and left the
+      // row stuck at 0% for good.
+      if (measuring.signal.aborted) {
         running.current = null;
         dispatch({ type: "progress", key: next.key, progress: 0 });
         return;
