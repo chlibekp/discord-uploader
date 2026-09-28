@@ -81,7 +81,11 @@ export function webRoutes(
       user: c.get("user") ?? null,
     });
     if (!res) return c.text("Not found", 404);
-    return withHtmlCharset(applyPageCsp(res));
+    const page = withHtmlCharset(applyPageCsp(res));
+    // Returning a bare Response would drop headers middleware already
+    // prepared on the context — notably `loadUser`'s Set-Cookie (sliding
+    // session re-issue, stale-cookie clear). `newResponse` merges them in.
+    return c.newResponse(page.body, page);
   });
 
   return app;

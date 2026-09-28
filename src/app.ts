@@ -28,20 +28,13 @@ export function createApp(deps: AppDeps): Hono<AuthEnv> {
   const app = new Hono<AuthEnv>();
 
   // Only these paths look at the session cookie, so image and file requests
-  // never cost a Redis read.
-  for (const path of [
-    "/auth/*",
-    "/api/me",
-    "/api/me/*",
-    "/dashboard",
-    "/dashboard/*",
-    "/login",
-  ]) {
+  // never cost a Redis read. Hono's `/x/*` also matches bare `/x`, so listing
+  // `/x` separately would run the middleware twice.
+  for (const path of ["/auth/*", "/api/me/*", "/dashboard/*", "/login"]) {
     app.use(path, loadUser(deps));
   }
   app.use("/auth/*", sameOrigin(deps.config));
   app.use("/api/me/*", sameOrigin(deps.config));
-  app.use("/dashboard", requirePageUser);
   app.use("/dashboard/*", requirePageUser);
 
   app.route("/", assetRoutes());

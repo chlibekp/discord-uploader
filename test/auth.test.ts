@@ -476,3 +476,60 @@ describe("session cookie handling", () => {
     h.deps.redis.pipeline = originalPipeline;
   });
 });
+
+describe("session cookies on Astro-rendered pages", () => {
+  function sessionCookies(res: Response): string[] {
+    return res.headers
+      .getSetCookie()
+      .filter((c) => c.startsWith("__Host-session="));
+  }
+
+  for (const page of ["/dashboard", "/dashboard/usage"]) {
+    it(`re-issues a sliding session cookie on ${page}`, async () => {
+      h = await makeHarness();
+      const token = await createAuthSession(h.deps.redis, alice);
+      await h.deps.redis.expire(`auth:${digest(token)}`, 86_400);
+
+      const res = await h.app.fetch(
+        new Request(`https://uploader.test${page}`, {
+          headers: { Cookie: `__Host-session=${token}` },
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      const cookies = sessionCookies(res);
+      expect(cookies).toHaveLength(1);
+      expect(cookies[0]).toMatch(`__Host-session=${token};`);
+      expect(cookies[0]).toMatch(`Max-Age=${AUTH_SESSION_TTL_SECONDS}`);
+      // The page's own headers survive the merge.
+      expect(res.headers.get("Content-Type")).toBe("text/html; charset=UTF-8");
+    });
+  }
+
+  it("clears a stale cookie on /login", async () => {
+    h = await makeHarness();
+    const res = await h.app.fetch(
+      new Request("https://uploader.test/login", {
+        headers: { Cookie: "__Host-session=stale" },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const cookies = sessionCookies(res);
+    expect(cookies).toHaveLength(1);
+    expect(cookies[0]).toMatch(/__Host-session=;.*Max-Age=0/);
+  });
+
+  for (const path of ["/api/me", "/dashboard"]) {
+    it(`clears a stale cookie exactly once on ${path}`, async () => {
+      h = await makeHarness();
+      const res = await h.app.fetch(
+        new Request(`https://uploader.test${path}`, {
+          headers: { Cookie: "__Host-session=stale" },
+        }),
+      );
+
+      expect(sessionCookies(res)).toHaveLength(1);
+    });
+  }
+});
