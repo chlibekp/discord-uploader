@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import type { ApiLimits } from "@server/me/types";
 import { readDimensions } from "../../../public/measure.js";
 import { formatBytes } from "../lib/format";
@@ -85,6 +86,15 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
   const [dragging, setDragging] = useState(false);
   const [said, setSaid] = useState("");
   const [ttl, setTtl] = useState(limits.defaultTtl);
+  // The TTL picker sits beside the Upload button in the brand bar. The tray
+  // persists across page swaps but the bar does not, so re-find its slot.
+  const [ttlSlot, setTtlSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const find = () => setTtlSlot(document.getElementById("upload-ttl"));
+    find();
+    document.addEventListener("astro:page-load", find);
+    return () => document.removeEventListener("astro:page-load", find);
+  }, []);
   const ttlRef = useRef(ttl);
   ttlRef.current = ttl;
 
@@ -309,6 +319,30 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
     (i) => i.status !== "queued" && i.status !== "uploading",
   );
 
+  const ttlPicker = (
+    <label className="upload-ttl">
+      <span className="muted">Keep for</span>
+      <select
+        className="toolbar-select"
+        value={ttl}
+        onChange={(e) => {
+          setTtl(e.target.value);
+          try {
+            localStorage.setItem(TTL_KEY, e.target.value);
+          } catch {
+            /* per-viewer convenience only */
+          }
+        }}
+      >
+        {limits.ttlOptions.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+
   return (
     <>
       <input
@@ -331,59 +365,35 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
           </div>
         </div>
       )}
-      <section className="tray panel" aria-label="Uploads">
-        <div className="tray-in">
-          <header className="tray-head">
-            <button
-              type="button"
-              className="tray-toggle"
-              aria-expanded={open}
-              onClick={() => setOpen((o) => !o)}
-            >
-              <span className="pixel">Uploads</span>
-              {items.length > 0 && (
-                <span className="count">
-                  {done}/{items.length}
-                </span>
-              )}
-            </button>
-            <label className="tray-ttl">
-              <span className="muted">Keep for</span>
-              <select
-                className="toolbar-select"
-                value={ttl}
-                onChange={(e) => {
-                  setTtl(e.target.value);
-                  try {
-                    localStorage.setItem(TTL_KEY, e.target.value);
-                  } catch {
-                    /* per-viewer convenience only */
-                  }
-                }}
-              >
-                {limits.ttlOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {hasFinished && (
+      {ttlSlot && createPortal(ttlPicker, ttlSlot)}
+      {items.length > 0 && (
+        <section className="tray panel" aria-label="Uploads">
+          <div className="tray-in">
+            <header className="tray-head">
               <button
                 type="button"
-                className="button small"
-                onClick={clearFinished}
+                className="tray-toggle"
+                aria-expanded={open}
+                onClick={() => setOpen((o) => !o)}
               >
-                Clear
+                <span className="pixel">Uploads</span>
+                {items.length > 0 && (
+                  <span className="count">
+                    {done}/{items.length}
+                  </span>
+                )}
               </button>
-            )}
-          </header>
-          {open &&
-            (items.length === 0 ? (
-              <p className="muted tray-hint">
-                Drop files anywhere, paste an image, or press Upload.
-              </p>
-            ) : (
+              {hasFinished && (
+                <button
+                  type="button"
+                  className="button small"
+                  onClick={clearFinished}
+                >
+                  Clear
+                </button>
+              )}
+            </header>
+            {open && (
               <ul className="tray-list">
                 {items.map((i) => (
                   <li key={i.key} className={`tray-row ${i.status}`}>
@@ -448,12 +458,13 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
                   </li>
                 ))}
               </ul>
-            ))}
-          <div className="sr-only" role="status" aria-live="polite">
-            {said}
+            )}
+            <div className="sr-only" role="status" aria-live="polite">
+              {said}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }
