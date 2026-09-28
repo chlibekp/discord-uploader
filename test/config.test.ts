@@ -58,3 +58,22 @@ describe("loadConfig", () => {
     );
   });
 });
+
+describe("DISCORD_CLIENT_SECRET", () => {
+  const base = {
+    DISCORD_APP_ID: "1",
+    DISCORD_PUBLIC_KEY: "a".repeat(64),
+    DISCORD_BOT_TOKEN: "t",
+    PUBLIC_URL: "https://x.test",
+    REDIS_URL: "redis://r",
+  };
+  it("is optional and defaults to empty", () => {
+    expect(loadConfig(base).discordClientSecret).toBe("");
+  });
+  it("is read and trimmed when set", () => {
+    expect(
+      loadConfig({ ...base, DISCORD_CLIENT_SECRET: " s3cret " })
+        .discordClientSecret,
+    ).toBe("s3cret");
+  });
+});

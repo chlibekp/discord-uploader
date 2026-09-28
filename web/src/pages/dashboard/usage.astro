@@ -1,0 +1,16 @@
+---
+import Dashboard from "../../layouts/Dashboard.astro";
+import UsageView from "../../islands/UsageView";
+import { getMyUsage, parseRange } from "@server/me/data";
+import { dashboardHeaders } from "../../lib/server/headers";
+
+const { deps, user } = Astro.locals;
+if (!user) return Astro.redirect("/login?next=%2Fdashboard%2Fusage", 302);
+dashboardHeaders(Astro.response.headers);
+const renderedAt = Date.now();
+const usage = await getMyUsage(deps, user.id, parseRange(Astro.url.searchParams.get("range") ?? undefined), renderedAt);
+---
+
+<Dashboard title="Usage" tab="usage">
+  <UsageView client:load initial={usage} renderedAt={renderedAt} />
+</Dashboard>

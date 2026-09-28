@@ -5,6 +5,8 @@ import { ConfigError, loadConfig } from "./config.js";
 import { registerAdminCommand, registerCommands } from "./discord/register.js";
 import { reconcile } from "./storage/lru.js";
 import { ensureDataDir, verifyDataDirWritable } from "./storage/store.js";
+import { markUsageSince, seedUsageFromFiles } from "./storage/usage.js";
+import { loadWebRenderer } from "./web/mount.js";
 
 /**
  * Each boot step is announced before it runs. A crash here means the platform
@@ -37,12 +39,19 @@ async function main() {
   await verifyDataDirWritable(config);
   await reconcile(redis, config);
 
+  await markUsageSince(redis);
+  const seeded = await seedUsageFromFiles(redis);
+  if (seeded !== null)
+    console.log(`Seeded per-user usage from ${seeded} stored files`);
+
   // Registration failures are logged, not fatal: already-registered commands
   // keep working, and a transient Discord outage should not stop the service.
   await registerCommands(config);
   await registerAdminCommand(config);
 
-  const app = createApp({ config, redis, fetch });
+  console.log("Loading web pages");
+  const web = await loadWebRenderer();
+  const app = createApp({ config, redis, fetch, web });
 
   serve({ fetch: app.fetch, port: config.port }, (info) => {
     console.log(`Listening on :${info.port}, public URL ${config.publicUrl}`);

@@ -47,6 +47,22 @@ export async function checkRateLimit(
   return { allowed: true, remaining: limit - count, limit, resetAt };
 }
 
+/** Same answer as checkRateLimit would give, without spending a request. */
+export async function peekRateLimit(
+  redis: Redis,
+  scope: string,
+  userId: string,
+  limit: number,
+  now = Date.now(),
+): Promise<RateLimitResult> {
+  const window = Math.floor(now / WINDOW_MS);
+  const resetAt = (window + 1) * WINDOW_MS;
+  if (limit <= 0) return { allowed: true, remaining: Infinity, limit, resetAt };
+  const count = Number((await redis.get(key(scope, userId, window))) ?? 0);
+  const remaining = Math.max(0, limit - count);
+  return { allowed: remaining > 0, remaining, limit, resetAt };
+}
+
 /** Minutes until `resetAt`, rounded up, for a friendly "try again in" message. */
 export function minutesUntil(resetAt: number, now = Date.now()): number {
   return Math.max(1, Math.ceil((resetAt - now) / 60_000));

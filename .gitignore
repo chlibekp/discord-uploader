@@ -5,3 +5,7 @@ dist/
 *.log
 .DS_Store
 data/
+test-results/
+playwright-report/
+web/dist/
+web/.astro/

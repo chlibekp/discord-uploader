@@ -21,10 +21,9 @@ function readBinary(name: string): Buffer {
 }
 
 export const assets = {
-  uploadHtml: readText("upload.html"),
   uploadJs: readText("upload.js"),
+  measureJs: readText("measure.js"),
   uploadCss: readText("upload.css"),
-  galleryHtml: readText("gallery.html"),
   galleryJs: readText("gallery.js"),
   galleryFiltersJs: readText("gallery-filters.js"),
   /** 128px sprite for the brand bar and the favicon. */
@@ -35,8 +34,3 @@ export const assets = {
   fontRegular: readBinary("brand/silkscreen-400.woff2"),
   fontBold: readBinary("brand/silkscreen-700.woff2"),
 };
-
-export const UPLOAD_PAGE_CSP =
-  "default-src 'none'; img-src 'self' blob:; media-src 'self' blob:; " +
-  "style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; form-action 'none'; " +
-  "base-uri 'none'; frame-ancestors 'none'";

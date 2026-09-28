@@ -11,6 +11,30 @@ import type { Redis } from "ioredis";
 import type { Config } from "../src/config.js";
 import type { AppDeps } from "../src/app.js";
 import { createApp } from "../src/app.js";
+import { loadWebRenderer, type WebRenderer } from "../src/web/mount.js";
+
+export type FetchRoute = (
+  url: string,
+  init?: RequestInit,
+) => Response | undefined;
+
+function parseBody(body: RequestInit["body"]): any {
+  if (body == null) return null;
+  if (body instanceof URLSearchParams) return Object.fromEntries(body);
+  const text = String(body);
+  try {
+    return JSON.parse(text);
+  } catch {
+    return Object.fromEntries(new URLSearchParams(text));
+  }
+}
+
+let webPromise: Promise<WebRenderer> | null = null;
+/** Loaded once per worker; `pnpm test` builds web/dist first. */
+export function sharedWebRenderer(): Promise<WebRenderer> {
+  webPromise ??= loadWebRenderer();
+  return webPromise;
+}
 
 export const keys = generateKeyPairSync("ed25519");
 
@@ -33,6 +57,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     discordAppId: "1234567890",
     discordPublicKey: publicKeyHex,
     discordBotToken: "test-token",
+    discordClientSecret: "test-secret",
     publicUrl: "https://uploader.test",
     redisUrl: "redis://localhost:6379",
     dataDir: mkdtempSync(path.join(tmpdir(), "uploader-")),
@@ -53,6 +78,7 @@ export interface Harness {
   app: ReturnType<typeof createApp>;
   deps: AppDeps;
   calls: { url: string; body: any }[];
+  respond: FetchRoute[];
   cleanup: () => void;
 }
 
@@ -67,27 +93,35 @@ export async function makeHarness(
   const redis = new RedisMock() as unknown as Redis;
   await redis.flushall();
   const calls: { url: string; body: any }[] = [];
+  const respond: FetchRoute[] = [];
 
   const fetchImpl = (async (
     url: string | URL | Request,
     init?: RequestInit,
   ) => {
-    calls.push({
-      url: String(url),
-      body: init?.body ? JSON.parse(String(init.body)) : null,
-    });
+    calls.push({ url: String(url), body: parseBody(init?.body) });
+    for (const route of respond) {
+      const hit = route(String(url), init);
+      if (hit) return hit;
+    }
     return new Response("{}", {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }) as unknown as typeof fetch;
 
-  const deps: AppDeps = { config, redis, fetch: fetchImpl };
+  const deps: AppDeps = {
+    config,
+    redis,
+    fetch: fetchImpl,
+    web: await sharedWebRenderer(),
+  };
 
   return {
     app: createApp(deps),
     deps,
     calls,
+    respond,
     cleanup: () => rmSync(config.dataDir, { recursive: true, force: true }),
   };
 }
