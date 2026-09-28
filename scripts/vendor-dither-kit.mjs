@@ -1,5 +1,6 @@
 // Copies dither-kit's shadcn registry items into web/src/components/dither-kit.
-// Re-run to update; then re-apply the palette patch (see palette.ts header).
+// Re-run to update; then re-apply both local patches, each described in its
+// file header: palette.ts (indigo/cyan/gold) and grid.tsx (tickCount).
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 

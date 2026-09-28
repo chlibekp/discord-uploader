@@ -126,6 +126,7 @@ would have a different disk and 404 on files the first one wrote. `railway.json`
 | `DISCORD_BOT_TOKEN`            | yes      |              | Registration only                                                                 |
 | `PUBLIC_URL`                   | yes      |              | No trailing slash                                                                 |
 | `REDIS_URL`                    | yes      |              | From the Redis plugin                                                             |
+| `DISCORD_CLIENT_SECRET`        | no       |              | Enables dashboard sign-in. Needs the Redirect `{PUBLIC_URL}/auth/callback`        |
 | `DATA_DIR`                     | no       | `/data`      | Volume mount path                                                                 |
 | `MAX_FILE_BYTES`               | no       | `2147483648` | 2 GB per file                                                                     |
 | `MAX_TOTAL_BYTES`              | no       | `4831838208` | 4.5 GB, ~10% under a 5 GB volume                                                  |
