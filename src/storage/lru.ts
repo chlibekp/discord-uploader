@@ -67,6 +67,17 @@ export async function reconcile(redis: Redis, config: Config): Promise<void> {
   const onDisk = new Set(await listStoredIds(config));
   const known = await redis.zrange(LRU_KEY, 0, -1);
 
+  // An empty Redis next to a populated volume almost always means Redis lost
+  // its data, not that every file is an orphan. Deleting here would turn a
+  // Redis outage into total data loss, so leave the files for an operator.
+  const redisLooksWiped = known.length === 0 && onDisk.size > 0;
+  if (redisLooksWiped) {
+    console.error(
+      `Redis has no file records but ${onDisk.size} directories exist in ${config.dataDir}; ` +
+        "skipping orphan deletion. Restore Redis or remove the directories by hand.",
+    );
+  }
+
   for (const id of known) {
     if (!onDisk.has(id)) {
       console.warn(`Dropping record ${id}: no directory on disk`);
@@ -79,6 +90,7 @@ export async function reconcile(redis: Redis, config: Config): Promise<void> {
 
   for (const id of onDisk) {
     if (!stillKnown.has(id)) {
+      if (redisLooksWiped) continue;
       console.warn(`Removing orphan directory ${id}: no record in Redis`);
       await deleteRecord(redis, config, id);
       continue;

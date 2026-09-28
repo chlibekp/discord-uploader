@@ -2,6 +2,8 @@ export interface Config {
   discordAppId: string;
   discordPublicKey: string;
   discordBotToken: string;
+  /** OAuth2 client secret for dashboard sign-in. Empty disables sign-in; the bot is unaffected. */
+  discordClientSecret: string;
   publicUrl: string;
   redisUrl: string;
   dataDir: string;
@@ -92,6 +94,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     discordAppId: required(env, "DISCORD_APP_ID"),
     discordPublicKey: publicKey.toLowerCase(),
     discordBotToken: required(env, "DISCORD_BOT_TOKEN"),
+    discordClientSecret: env.DISCORD_CLIENT_SECRET?.trim() || "",
     publicUrl,
     redisUrl: required(env, "REDIS_URL"),
     dataDir: env.DATA_DIR?.trim() || DEFAULTS.DATA_DIR,

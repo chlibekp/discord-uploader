@@ -1,0 +1,21 @@
+---
+interface Props {
+  name: string;
+  sub: string;
+}
+const { name, sub } = Astro.props;
+const hasEnd = Astro.slots.has("end");
+---
+
+<header class="bar">
+  <img class="mark" src="/assets/mascot-small.png" alt="" width="48" height="48" />
+  <div class="bar-title">
+    <span class="bar-name">{name}</span>
+    <span class="bar-sub">{sub}</span>
+  </div>
+  {hasEnd && (
+    <div class="bar-end">
+      <slot name="end" />
+    </div>
+  )}
+</header>

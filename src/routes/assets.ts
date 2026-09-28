@@ -22,6 +22,12 @@ export function assetRoutes(): Hono {
       "Cache-Control": NO_CACHE,
     }),
   );
+  app.get("/assets/measure.js", (c) =>
+    c.body(assets.measureJs, 200, {
+      "Content-Type": SCRIPT,
+      "Cache-Control": NO_CACHE,
+    }),
+  );
   app.get("/assets/gallery.js", (c) =>
     c.body(assets.galleryJs, 200, {
       "Content-Type": SCRIPT,

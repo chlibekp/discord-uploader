@@ -1,0 +1,84 @@
+---
+import Shell from "../../layouts/Shell.astro";
+import BrandBar from "../../components/BrandBar.astro";
+import Expired from "../../components/Expired.astro";
+import LegacyTile from "../../components/LegacyTile.astro";
+import { claimSession, createActionToken } from "@server/storage/sessions";
+import { expireDue, listUserFiles } from "@server/storage/store";
+import { formatBytes } from "@server/web/format";
+import { UPLOAD_PAGE_CSP } from "@server/web/csp";
+import type { FileRecord } from "@server/types";
+
+const { deps } = Astro.locals;
+Astro.response.headers.set("x-page-csp", UPLOAD_PAGE_CSP);
+
+// Rendered in full on this one request, spending the session, so a reload
+// correctly finds a dead link.
+const claim = await claimSession(deps.redis, Astro.params.gid ?? "");
+// A session opened by /upload must not be spendable here.
+const live = claim.status === "ok" && claim.session.kind === "gallery";
+
+let files: FileRecord[] = [];
+let token = "";
+if (live && claim.status === "ok") {
+  await expireDue(deps.redis, deps.config);
+  // Scoped to the invoker, so a leaked link still exposes only their own files.
+  files = await listUserFiles(deps.redis, claim.session.userId);
+  token = await createActionToken(deps.redis, claim.session.userId);
+  Astro.response.headers.set("Cache-Control", "no-store");
+} else {
+  Astro.response.status = 404;
+}
+const bytes = files.reduce((total, f) => total + f.size, 0);
+const summary =
+  files.length > 0 ? `${formatBytes(bytes)}, newest first` : "Nothing stored yet";
+const count =
+  files.length > 0 ? `${files.length} ${files.length === 1 ? "file" : "files"}` : "";
+---
+
+{
+  !live ? (
+    <Expired
+      explanation="This gallery link has already been opened or has run out of time."
+      command="gallery"
+    />
+  ) : (
+    <Shell title="Your uploads" bodyAttrs={{ "data-token": token }}>
+      <BrandBar name="Your uploads" sub={summary}>
+        <span slot="end" class="count">{count}</span>
+      </BrandBar>
+      {files.length > 0 ? (
+        <>
+          <main class="gallery-main">
+            <div class="toolbar">
+              <label class="toolbar-label" for="filter">Filter</label>
+              <input class="toolbar-input" type="search" id="filter" placeholder="Filter by filename" autocomplete="off" />
+              <label class="toolbar-label" for="sort">Sort</label>
+              <select class="toolbar-select" id="sort">
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="largest">Largest</option>
+                <option value="smallest">Smallest</option>
+                <option value="soonest">Soonest to expire</option>
+              </select>
+              <span class="toolbar-count" id="filterCount" />
+            </div>
+            <div class="sheet" id="sheet" role="grid" aria-label="Your uploads">
+              {files.map((file) => <LegacyTile config={deps.config} file={file} />)}
+            </div>
+            <p class="sheet-empty" id="sheetEmpty" hidden>No files match that filter.</p>
+          </main>
+          <p class="sheet-note">Oldest files are cleared as storage fills. Keep your own copy of anything that matters.</p>
+          <div class="sr-only" id="liveRegion" role="status" aria-live="assertive" aria-atomic="true" />
+        </>
+      ) : (
+        <main class="empty">
+          <img src="/assets/mascot.png" alt="" width="128" height="128" />
+          <h2>No files yet</h2>
+          <p class="muted">Run <code>/upload</code> in Discord and whatever you send lands here.</p>
+        </main>
+      )}
+      <script is:inline type="module" src="/assets/gallery.js" />
+    </Shell>
+  )
+}

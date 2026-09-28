@@ -32,6 +32,9 @@
   --cyan: #3fc1f3;
   --gold: #f5c518;
   --danger: #ef4a5a;
+  /* Discord's brand colour, for the one button that leaves for discord.com. */
+  --blurple: #5865f2;
+  --blurple-hi: #6d79f5;
 
   /* Pixel grid: every measurement is a multiple of 8. */
   --step: 8px;
@@ -334,6 +337,15 @@ a {
   opacity: 0.35;
   cursor: not-allowed;
   filter: none;
+}
+
+/* Discord's blurple, for the one button that leaves for discord.com. */
+.button.discord {
+  width: 100%;
+  background: var(--blurple);
+}
+.button.discord:hover:not(:disabled) {
+  background: var(--blurple-hi);
 }
 
 .button.small {

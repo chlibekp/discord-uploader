@@ -80,6 +80,17 @@ describe("POST /interactions", () => {
     expect(button.url).toMatch(/^https:\/\/uploader\.test\/u\/[\w-]{22}$/);
   });
 
+  it("adds an Open dashboard button when sign-in is configured", async () => {
+    const res = await h.app.fetch(interactionRequest(uploadCommand()));
+    const buttons = (await res.json()).data.components[0].components;
+    expect(buttons[1]).toMatchObject({
+      type: 2,
+      style: 5,
+      label: "Open dashboard",
+      url: "https://uploader.test/dashboard",
+    });
+  });
+
   it("stores the session with the invoker, channel, token and a TTL", async () => {
     const sid = await startSession();
     const stored = await h.deps.redis.hgetall(`sess:${sid}`);

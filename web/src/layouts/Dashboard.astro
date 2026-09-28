@@ -1,0 +1,70 @@
+---
+import { ClientRouter } from "astro:transitions";
+import Shell from "./Shell.astro";
+import BrandBar from "../components/BrandBar.astro";
+import Toasts from "../islands/Toasts";
+import UserAvatar from "../islands/UserAvatar";
+import UploadTray from "../islands/UploadTray";
+import { limitsFor } from "@server/me/data";
+import "../styles/dashboard.css";
+
+interface Props {
+  title: string;
+  tab: "files" | "usage";
+}
+const { title, tab } = Astro.props;
+const user = Astro.locals.user!;
+const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64` : null;
+---
+
+<Shell title={title}>
+  <ClientRouter slot="head" />
+  <BrandBar name="Dashboard" sub={`@${user.username}`}>
+    <Fragment slot="end">
+      <button class="button small upload-trigger" type="button" data-upload-trigger>Upload</button>
+      <details class="menu">
+        <summary aria-label="Account menu">
+          {avatarUrl ? <img class="avatar" src={avatarUrl} alt="" width="32" height="32" /> : <UserAvatar client:load seed={user.id} />}
+        </summary>
+        <div class="menu-pop panel">
+          <div class="menu-in">
+            <p class="menu-who">{user.globalName || user.username}</p>
+            <form method="post" action="/auth/logout" data-astro-reload>
+              <button class="menu-item" type="submit">Sign out</button>
+            </form>
+            <form method="post" action="/auth/logout" data-astro-reload>
+              <input type="hidden" name="everywhere" value="1" />
+              <button class="menu-item" type="submit">Sign out everywhere</button>
+            </form>
+          </div>
+        </div>
+      </details>
+    </Fragment>
+  </BrandBar>
+  <nav class="dash-tabs" aria-label="Dashboard">
+    <a href="/dashboard" aria-current={tab === "files" ? "page" : undefined}>Files</a>
+    <a href="/dashboard/usage" aria-current={tab === "usage" ? "page" : undefined}>Usage</a>
+  </nav>
+  <slot />
+  <UploadTray client:load transition:persist="upload-tray" limits={limitsFor(Astro.locals.deps.config)} />
+  <Toasts client:load transition:persist="toasts" />
+</Shell>
+
+<script>
+  // The account menu is a plain <details>; give it the usual popup manners.
+  // Document-level listeners, so they survive ClientRouter page swaps.
+  const openMenu = () =>
+    document.querySelector<HTMLDetailsElement>("details.menu[open]");
+
+  document.addEventListener("keydown", (e) => {
+    const menu = openMenu();
+    if (e.key !== "Escape" || !menu) return;
+    menu.open = false;
+    menu.querySelector("summary")?.focus();
+  });
+
+  document.addEventListener("click", (e) => {
+    const menu = openMenu();
+    if (menu && !menu.contains(e.target as Node)) menu.open = false;
+  });
+</script>

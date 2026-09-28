@@ -1,0 +1,6 @@
+web/src/components/dither-kit/
+web/dist/
+web/.astro/
+test/e2e/__screenshots__/
+pnpm-lock.yaml
+.superpowers/

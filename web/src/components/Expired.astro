@@ -1,0 +1,22 @@
+---
+import Shell from "../layouts/Shell.astro";
+import BrandBar from "./BrandBar.astro";
+interface Props {
+  explanation: string;
+  command: "upload" | "gallery";
+}
+const { explanation, command } = Astro.props;
+---
+
+<Shell title="Link expired">
+  <BrandBar name="Link expired" sub="Single use, 14 minutes" />
+  <main class="centered">
+    <div class="card panel">
+      <div class="card-in">
+        <header><h1>This link is done</h1></header>
+        <p class="muted">{explanation}</p>
+        <p class="muted">Run <code>/{command}</code> in Discord for a fresh one.</p>
+      </div>
+    </div>
+  </main>
+</Shell>

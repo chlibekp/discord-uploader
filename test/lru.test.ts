@@ -149,13 +149,20 @@ describe("reconcile", () => {
   });
 
   it("removes orphan directories with no record", async () => {
+    // Seed a live file so the guard doesn't activate
+    const kept = await addFile("kept", 100, Date.now());
+
+    // Create orphan directory with no Redis record
     await mkdir(fileDir(config, "orphan"), { recursive: true });
     await writeFile(
       path.join(fileDir(config, "orphan"), "x.png"),
       Buffer.alloc(50),
     );
+
     await reconcile(redis, config);
+
+    expect(existsSync(fileDir(config, "kept"))).toBe(true);
     expect(existsSync(fileDir(config, "orphan"))).toBe(false);
-    expect(await totalBytes(redis)).toBe(0);
+    expect(await totalBytes(redis)).toBe(100);
   });
 });
