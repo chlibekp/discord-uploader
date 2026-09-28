@@ -15,6 +15,16 @@ you have uploaded, newest first. Each tile shows its size, upload date and remai
 lifetime, and can be opened, have its link copied, or be deleted. It lists only your
 own files, never anyone else's.
 
+## Dashboard
+
+Sign in with Discord at `/login` for a dashboard with everything you have uploaded:
+
+- **Files:** filter, sort, a lightbox, keyboard navigation (`/` filter, arrows, `Enter` open, `x` select), and bulk select with shift-click.
+- **Uploading:** drop files anywhere, paste an image, or press **Upload**. Files queue one at a time with their own progress, cancel and retry. Dashboard uploads are stored and linked but not posted to Discord.
+- **Usage:** storage against your quota, uploads and data per day (7/30/90 days), per-command counts, and hourly rate-limit headroom.
+
+Sign-in uses OAuth2 with the `identify` scope only. The session is an `HttpOnly` cookie backed by Redis for 30 days. The Discord access token is discarded after reading your id, name and avatar.
+
 Deleting needs a credential that outlives the page load, since the gallery session is
 spent rendering. The page is therefore issued an action token, good for 15 minutes,
 that names one user and nothing more: every delete is still checked against the owner
@@ -82,6 +92,9 @@ In the [Developer Portal](https://discord.com/developers/applications):
 4. Under _General Information_, set **Interactions Endpoint URL** to
    `https://<your-domain>/interactions`. Discord verifies it with a signed PING, so
    deploy first, then save this.
+5. Under _OAuth2_, copy the **Client Secret** into `DISCORD_CLIENT_SECRET` and add
+   `https://<your-domain>/auth/callback` as a **Redirect**. Without the secret the bot
+   works as before and the dashboard says sign-in is not configured.
 
 Command registration happens **inside the service**: on every boot it does a
 `PUT /applications/{id}/commands`, which is a full idempotent replace. There is no
@@ -96,6 +109,9 @@ separate registration script to run. Global commands can take up to an hour to a
 4. Generate a public domain and set `PUBLIC_URL` to it — this cannot be inferred, and
    every link the bot posts depends on it.
 5. Set the remaining variables from `.env.example`.
+6. Confirm the Redis plugin persists to disk: `redis-cli CONFIG GET appendonly` should
+   print `yes`. File records live only in Redis; if it ever comes back empty the service
+   refuses to delete the files on the volume at boot and logs an error instead.
 
 **Single replica only.** A Railway volume attaches to one instance; a second replica
 would have a different disk and 404 on files the first one wrote. `railway.json` pins
@@ -244,6 +260,9 @@ the tunnel's address.
 
 Tests run against `ioredis-mock` and a temporary data directory, and drive the app
 through `app.fetch()` with Discord calls stubbed. No network or Redis needed.
+
+`pnpm dev` rebuilds the Astro pages on change (no hot reload), and `pnpm test:e2e` runs
+the Playwright suite against an in-memory Redis.
 
 ## Design
 

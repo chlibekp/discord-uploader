@@ -35,6 +35,7 @@ ENV NODE_ENV=production
 #             MAX_FILE_BYTES   (default 2147483648  – 2 GB per file)
 #             MAX_TOTAL_BYTES  (default 4831838208  – whole-volume cap)
 #             MAX_USER_BYTES   (default 2147483648  – 2 GB per uploader)
+#             DISCORD_CLIENT_SECRET (enables dashboard sign-in)
 #             PORT             (default 3000, set by Railway)
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
