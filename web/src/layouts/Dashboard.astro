@@ -21,6 +21,7 @@ const avatarUrl = user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/$
   <ClientRouter slot="head" />
   <BrandBar name="Dashboard" sub={`@${user.username}`}>
     <Fragment slot="end">
+      <span id="upload-ttl"></span>
       <button class="button small upload-trigger" type="button" data-upload-trigger>Upload</button>
       <details class="menu">
         <summary aria-label="Account menu">

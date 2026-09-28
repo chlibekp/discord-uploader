@@ -435,12 +435,12 @@
   padding: 4px 0;
   margin-right: auto;
 }
-.tray-ttl {
+.upload-ttl {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.tray-ttl .toolbar-select {
+.upload-ttl .toolbar-select {
   padding: 4px 6px;
   font-size: 12px;
 }
@@ -450,9 +450,6 @@
   padding: 0;
   max-height: 320px;
   overflow: auto;
-}
-.tray-hint {
-  padding: calc(var(--step) * 1.5);
 }
 .tray-row {
   display: grid;
@@ -500,7 +497,7 @@ body:has(.tray) {
   padding-bottom: calc(var(--step) * 20);
 }
 /* Selecting: the tray folds to its header and the select bar rides above it. */
-body:has(.gallery-main.selecting) :is(.tray-list, .tray-hint) {
+body:has(.gallery-main.selecting) .tray-list {
   display: none;
 }
 body:has(.tray) .select-bar {
@@ -679,10 +676,6 @@ body:has(.tray) .select-bar {
     right: 0;
     bottom: 0;
     width: 100%;
-  }
-  /* The Upload button is right there; keep the phone's screen for files. */
-  .tray-hint {
-    display: none;
   }
   .select-bar {
     bottom: calc(var(--step) * 1);
