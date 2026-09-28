@@ -161,14 +161,21 @@ export default function UploadTray({ limits }: { limits: ApiLimits }) {
       return;
     }
     dispatch({ type: "start", key: next.key });
-    running.current = { key: next.key, abort: () => {} };
+    // Cancel while measuring aborts the measurement, which settles at once.
+    const measuring = new AbortController();
+    running.current = { key: next.key, abort: () => measuring.abort() };
     void (async () => {
       const url = URL.createObjectURL(file);
-      const dims = await readDimensions(file, url);
+      const dims = await readDimensions(file, url, {
+        signal: measuring.signal,
+      });
       URL.revokeObjectURL(url);
       // Cancelled while measuring: free the slot, then nudge the effect (a
       // progress action always yields a new array) so the next file starts.
+      // The abort flag is checked first because the cancel dispatch may not
+      // have rendered into itemsRef yet.
       if (
+        measuring.signal.aborted ||
         itemsRef.current.find((i) => i.key === next.key)?.status !== "uploading"
       ) {
         running.current = null;
