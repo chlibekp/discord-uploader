@@ -137,8 +137,14 @@ export default function FilesView({
   useEffect(() => {
     const read = () => {
       const m = location.hash.match(/^#f=(.+)$/);
-      setOpenId(m ? decodeURIComponent(m[1]!) : null);
-      if (!m) pushed.current = false;
+      let id: string | null = null;
+      try {
+        id = m ? decodeURIComponent(m[1]!) : null;
+      } catch {
+        // A malformed hash (#f=%E0) is treated as "nothing open".
+      }
+      setOpenId(id);
+      if (!id) pushed.current = false;
     };
     read();
     window.addEventListener("hashchange", read);
@@ -154,8 +160,12 @@ export default function FilesView({
     setOpenId(id);
   }, []);
   const close = useCallback(() => {
-    if (pushed.current) history.back();
-    else {
+    // Cleared before going back so a second close() before the hashchange
+    // lands can't step back past the dashboard.
+    if (pushed.current) {
+      pushed.current = false;
+      history.back();
+    } else {
       history.replaceState(
         history.state,
         "",
@@ -215,11 +225,24 @@ export default function FilesView({
     [removeOne, focusId],
   );
 
+  // The selection never outlives a tile's visibility: a filter, kind or
+  // delete that hides a selected tile drops it, so bulk actions only ever act
+  // on tiles the user can see. Deriving from `visible` covers the render
+  // before this prune lands.
+  useEffect(() => {
+    const shown = new Set(order);
+    setSelected((s) => {
+      const kept = [...s].filter((id) => shown.has(id));
+      return kept.length === s.size ? s : new Set(kept);
+    });
+  }, [order]);
   const selectedFiles = useMemo(
-    () => files.filter((f) => selected.has(f.id)),
-    [files, selected],
+    () => visible.filter((f) => selected.has(f.id)),
+    [visible, selected],
   );
   const selectedBytes = selectedFiles.reduce((n, f) => n + f.size, 0);
+  /** Remounts the bulk Delete, disarming it, whenever the selection changes. */
+  const selectionKey = selectedFiles.map((f) => f.id).join(" ");
 
   const exitSelect = useCallback(() => {
     setSelecting(false);
@@ -463,6 +486,7 @@ export default function FilesView({
                   Copy links
                 </button>
                 <ArmButton
+                  key={selectionKey}
                   describe={plural(selectedFiles.length, "file", "files")}
                   onConfirm={removeSelected}
                 />

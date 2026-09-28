@@ -166,6 +166,17 @@ test("lightbox: open, arrow through, Esc and Back close it", async ({
   await expect(dialog).toHaveCount(0);
 });
 
+test("a malformed #f= hash leaves the files view working", async ({ page }) => {
+  const problems = watchConsole(page);
+  await login(page);
+  await page.goto("/dashboard#f=%E0");
+  await expect(tiles(page)).toHaveCount(3);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await tiles(page).first().click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect(problems).toEqual([]);
+});
+
 test("bulk select with shift-click and delete", async ({ page }) => {
   await login(page);
   await page.goto("/dashboard");
@@ -181,6 +192,56 @@ test("bulk select with shift-click and delete", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "No files yet" }),
   ).toBeVisible();
+});
+
+test("lightbox: an armed Delete does not carry over to the next file", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/dashboard");
+  await tiles(page).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  const first = await dialog.getAttribute("aria-label");
+
+  // Arrow keys with a modifier belong to the browser/OS, not the viewer.
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Alt+ArrowRight");
+  await expect(dialog).toHaveAttribute("aria-label", first!);
+
+  await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Delete?", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(dialog).not.toHaveAttribute("aria-label", first!);
+  // Read once rather than retry: a retrying assertion would pass anyway once
+  // the arm times out after 4s.
+  expect(await dialog.locator(".button.danger").textContent()).toBe("Delete");
+});
+
+test("bulk delete skips selected tiles the filter hides", async ({ page }) => {
+  await login(page);
+  await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Select" }).click();
+  await tiles(page).filter({ hasText: "cyan-square.png" }).click();
+  await tiles(page).filter({ hasText: "gold-wide.png" }).click();
+  const bar = page.getByRole("region", { name: "Selection" });
+  await expect(bar).toContainText("2 selected");
+
+  await page.getByLabel("Filter", { exact: true }).fill("gold");
+  await expect(tiles(page)).toHaveCount(1);
+  await expect(bar).toContainText("1 selected");
+  await bar.getByRole("button", { name: "Delete" }).click();
+  await bar.getByRole("button", { name: "Delete?" }).click();
+  await expect(tiles(page)).toHaveCount(0);
+
+  await page.getByLabel("Filter", { exact: true }).fill("");
+  await expect(tiles(page)).toHaveCount(2);
+  await expect(tiles(page).filter({ hasText: "cyan-square.png" })).toHaveCount(
+    1,
+  );
+  await expect(tiles(page).filter({ hasText: "gold-wide.png" })).toHaveCount(0);
 });
 
 test("usage tab renders charts and switches range", async ({ page }) => {

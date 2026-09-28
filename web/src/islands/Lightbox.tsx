@@ -50,12 +50,25 @@ export default function Lightbox({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Arrows with a modifier are browser/OS shortcuts, and on a focused
+      // <video> or form field they seek or move the caret instead.
+      const browse =
+        !e.altKey &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.shiftKey &&
+        !(
+          e.target instanceof HTMLVideoElement ||
+          e.target instanceof HTMLInputElement ||
+          e.target instanceof HTMLSelectElement ||
+          e.target instanceof HTMLTextAreaElement
+        );
       if (e.key === "Escape") {
         e.preventDefault();
         onClose();
-      } else if (e.key === "ArrowRight" && index < files.length - 1) {
+      } else if (browse && e.key === "ArrowRight" && index < files.length - 1) {
         onNavigate(files[index + 1]!.id);
-      } else if (e.key === "ArrowLeft" && index > 0) {
+      } else if (browse && e.key === "ArrowLeft" && index > 0) {
         onNavigate(files[index - 1]!.id);
       } else if (e.key === "Tab" && dialog.current) {
         // Keep focus inside the dialog.
@@ -163,7 +176,8 @@ export default function Lightbox({
             >
               Open
             </a>
-            <ArmButton describe={file.name} onConfirm={remove} />
+            {/* Keyed so an armed or busy state never carries to the next file. */}
+            <ArmButton key={file.id} describe={file.name} onConfirm={remove} />
           </div>
           <p className="muted">
             {index + 1} / {files.length} · ← → browse · Esc close
