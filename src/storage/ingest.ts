@@ -2,7 +2,7 @@ import busboy from "busboy";
 import { createWriteStream } from "node:fs";
 import { mkdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
-import { Transform } from "node:stream";
+import { finished, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { Context } from "hono";
 import type { AppDeps } from "../app.js";
@@ -89,8 +89,20 @@ async function receiveUpload(
     limits: { files: 1, fields: 8, fieldSize: 64 },
   });
 
+  let filePromise: Promise<void> = Promise.resolve();
+  const source = requestNodeStream(c);
+
   const done = new Promise<void>((resolve, reject) => {
-    let filePromise: Promise<void> = Promise.resolve();
+    // `pipe()` doesn't forward a premature close: if the client disconnects
+    // mid-body (the dashboard tray's Cancel aborts the XHR), busboy never
+    // sees the end of the form and never emits `close`. Watch the source
+    // itself so the upload settles and its partial file is cleaned up.
+    finished(source, (err) => {
+      if (err)
+        reject(
+          new UploadError(400, "The upload was interrupted before it finished"),
+        );
+    });
 
     bb.on("field", (name, value) => {
       fields[name] = value;
@@ -159,7 +171,6 @@ async function receiveUpload(
     });
   });
 
-  const source = requestNodeStream(c);
   source.pipe(bb);
 
   try {
@@ -172,6 +183,10 @@ async function receiveUpload(
     source.unpipe(bb);
     bb.destroy();
     source.resume();
+    // Destroying busboy destroys the file stream it handed out, so the file
+    // pipeline fails and closes its write stream. Wait for that before the
+    // caller removes the directory, so no descriptor or `.part` outlives it.
+    await filePromise.catch(() => {});
     throw err;
   }
 

@@ -19,7 +19,8 @@
  * on disk, and no rejection goes unhandled.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
 import http from "node:http";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -237,4 +238,96 @@ describe("mid-stream upload abort over a real socket", () => {
     await settle();
     expect(unhandled).toEqual([]);
   }, 5000);
+});
+
+/**
+ * Write the first part of a body over a real socket, wait until the server
+ * has started writing it to disk, then destroy the request — what a browser
+ * does when the dashboard tray's Cancel aborts the XHR mid-upload.
+ */
+function postThenAbort(
+  path: string,
+  contentType: string,
+  firstChunk: Buffer,
+  headers: Record<string, string> = {},
+): { aborted: Promise<void> } {
+  const req = http.request(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": contentType, ...headers },
+  });
+  // The socket error from our own destroy() is expected.
+  req.on("error", () => {});
+  req.write(firstChunk);
+  const aborted = (async () => {
+    await waitFor(() => partBytes() > 0);
+    req.destroy();
+  })();
+  return { aborted };
+}
+
+/** Bytes written so far to any upload's `.part` file under dataDir. */
+function partBytes(): number {
+  let total = 0;
+  for (const id of readdirSync(h.deps.config.dataDir)) {
+    const part = path.join(h.deps.config.dataDir, id, ".part");
+    if (existsSync(part)) total += statSync(part).size;
+  }
+  return total;
+}
+
+async function waitFor(check: () => boolean, timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error("Timed out waiting");
+    await new Promise((r) => setTimeout(r, 10));
+  }
+}
+
+describe("client disconnects mid-body over a real socket", () => {
+  it("POST /u/:sid/file: the handler settles and the partial file is removed", async () => {
+    await start({ maxFileBytes: 8 * 1024 * 1024 });
+    const sid = await uploadSid();
+    const { body, contentType } = multipart(
+      {},
+      {
+        field: "file",
+        filename: "a.png",
+        contentType: "image/png",
+        content: fixtures.png(5 * 1024 * 1024),
+      },
+    );
+    const [first] = splitAfterContentBytes(body, 1024 * 1024);
+
+    const { aborted } = postThenAbort(`/u/${sid}/file`, contentType, first);
+    await aborted;
+
+    await waitFor(() => readdirSync(h.deps.config.dataDir).length === 0);
+    await settle();
+    expect(unhandled).toEqual([]);
+  }, 10_000);
+
+  it("POST /api/me/files: the handler settles and the partial file is removed", async () => {
+    await start({ maxFileBytes: 8 * 1024 * 1024 });
+    const cookie = await meCookie();
+    const { body, contentType } = multipart(
+      {},
+      {
+        field: "file",
+        filename: "a.png",
+        contentType: "image/png",
+        content: fixtures.png(5 * 1024 * 1024),
+      },
+    );
+    const [first] = splitAfterContentBytes(body, 1024 * 1024);
+
+    const { aborted } = postThenAbort("/api/me/files", contentType, first, {
+      Cookie: cookie,
+      Origin: ORIGIN,
+    });
+    await aborted;
+
+    await waitFor(() => readdirSync(h.deps.config.dataDir).length === 0);
+    await settle();
+    expect(unhandled).toEqual([]);
+  }, 10_000);
 });
