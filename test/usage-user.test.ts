@@ -107,6 +107,29 @@ describe("per-user usage", () => {
     ).toEqual({ uploads: "2", bytes: "11" });
   });
 
+  it("keeps day buckets long enough for the 90D previous period", async () => {
+    // A 90D read covers today and the 179 days before it (two windows).
+    expect(DAY_TTL_SECONDS).toBeGreaterThanOrEqual((2 * 90 + 1) * 86_400);
+
+    h = await makeHarness();
+    await saveRecord(h.deps.redis, {
+      id: "old",
+      name: "a.png",
+      mime: "image/png",
+      kind: "image",
+      size: 7,
+      width: 1,
+      height: 1,
+      createdAt: NOW - 150 * DAY,
+      expiresAt: 0,
+      userId: "u1",
+      channelId: "c",
+    });
+    expect(await seedUsageFromFiles(h.deps.redis, NOW)).toBe(1);
+    const usage = await getUserUsage(h.deps.redis, "u1", 90, NOW);
+    expect(usage.previous).toEqual({ uploads: 1, bytes: 7 });
+  });
+
   it("records trackingSince once", async () => {
     h = await makeHarness();
     await markUsageSince(h.deps.redis, 1000);

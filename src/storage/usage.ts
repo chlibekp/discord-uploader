@@ -19,8 +19,12 @@ export const USER_DAY_KEY = (userId: string, day: string) =>
 export const USER_CMDS_KEY = (userId: string) => `usage:${userId}:cmds`;
 export const USAGE_SINCE_KEY = "usage:since";
 export const USAGE_SEEDED_KEY = "usage:seeded:v1";
-/** Longer than the widest range (90 days) so a range read never finds a hole. */
-export const DAY_TTL_SECONDS = 100 * 86_400;
+/**
+ * A range read also covers the equal period before it, so the widest range
+ * (90 days) reaches back over today plus 179 earlier days: 2 × 90 + 1 = 181.
+ * Anything shorter leaves the 90D "vs previous period" mostly expired.
+ */
+export const DAY_TTL_SECONDS = 181 * 86_400;
 const DAY_MS = 86_400_000;
 
 export function utcDay(ms: number): string {
@@ -115,6 +119,8 @@ export async function seedUsageFromFiles(
   const won = await redis.set(USAGE_SEEDED_KEY, "1", "NX");
   if (won !== "OK") return null;
   let seeded = 0;
+  // Files older than a day bucket's lifetime would only write buckets that
+  // no range read can reach, so they are skipped.
   for (const id of await redis.zrange(LRU_KEY, 0, -1)) {
     const record = await getRecord(redis, id);
     if (!record?.userId || now - record.createdAt > DAY_TTL_SECONDS * 1000)
