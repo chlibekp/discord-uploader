@@ -43,6 +43,8 @@ const DEFERRED_UPDATE_MESSAGE = 6;
 const UPDATE_MESSAGE = 7;
 const EPHEMERAL = 64;
 
+const DASHBOARD_URL = "https://u.imageuploader.xyz/dashboard";
+
 export function interactionsRoutes(deps: AppDeps): Hono {
   const app = new Hono();
 
@@ -92,6 +94,7 @@ export function interactionsRoutes(deps: AppDeps): Hono {
         command !== "help" &&
         command !== "info" &&
         command !== "stats" &&
+        command !== "dashboard" &&
         command !== "admin")
     ) {
       return c.json({ error: "Unsupported interaction" }, 400);
@@ -136,9 +139,34 @@ export function interactionsRoutes(deps: AppDeps): Hono {
               "`/gallery` — Browse everything you have uploaded",
               "`/stats` — Show how much you have stored",
               "`/info` — Show infrastructure, resource usage, installs, and bot usage",
+              "`/dashboard` — Get a link to your dashboard",
               "`/help` — Show this help message",
             ].join("\n"),
           }),
+        ),
+      );
+    }
+
+    if (command === "dashboard") {
+      return c.json(
+        embedReply(
+          brandedEmbed({
+            title: "🗂️ ImageUploader — Dashboard",
+            description: `Manage your uploads on the [dashboard](${DASHBOARD_URL}).`,
+          }),
+          [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: 5,
+                  label: "Open dashboard",
+                  url: DASHBOARD_URL,
+                },
+              ],
+            },
+          ],
         ),
       );
     }

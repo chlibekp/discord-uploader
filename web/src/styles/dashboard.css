@@ -495,9 +495,9 @@
   color: var(--dim);
   text-decoration: line-through;
 }
-/* Room to scroll the last row and the note clear of the folded tray. */
+/* Room to scroll the last row and the note clear of the open tray. */
 body:has(.tray) {
-  padding-bottom: calc(var(--step) * 10);
+  padding-bottom: calc(var(--step) * 20);
 }
 /* Selecting: the tray folds to its header and the select bar rides above it. */
 body:has(.gallery-main.selecting) :is(.tray-list, .tray-hint) {

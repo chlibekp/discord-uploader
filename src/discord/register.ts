@@ -56,6 +56,14 @@ export const STATS_COMMAND = {
   contexts: CONTEXTS,
 } as const;
 
+export const DASHBOARD_COMMAND = {
+  name: "dashboard",
+  description: "Get a link to your dashboard",
+  type: 1,
+  integration_types: INTEGRATION_TYPES,
+  contexts: CONTEXTS,
+} as const;
+
 /**
  * Guild-scoped, so it is only visible in the operator's own server. Discord has
  * no per-user command visibility, so the handler checks the invoking user id as
@@ -73,6 +81,7 @@ export const COMMANDS = [
   HELP_COMMAND,
   INFO_COMMAND,
   STATS_COMMAND,
+  DASHBOARD_COMMAND,
 ];
 
 /**
