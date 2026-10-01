@@ -3,6 +3,7 @@ import { Redis } from "ioredis";
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig } from "./config.js";
 import { registerAdminCommand, registerCommands } from "./discord/register.js";
+import { startDailyUserCountPush } from "./stats-push.js";
 import { reconcile } from "./storage/lru.js";
 import { ensureDataDir, verifyDataDirWritable } from "./storage/store.js";
 import { markUsageSince, seedUsageFromFiles } from "./storage/usage.js";
@@ -56,6 +57,8 @@ async function main() {
   serve({ fetch: app.fetch, port: config.port }, (info) => {
     console.log(`Listening on :${info.port}, public URL ${config.publicUrl}`);
   });
+
+  startDailyUserCountPush(redis, fetch);
 
   const shutdown = async () => {
     console.log("Shutting down");
