@@ -69,6 +69,8 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     adminUserIds: ["979103930309046323"],
     adminGuildId: "",
     commandLogWebhookUrl: "",
+    topggToken: "",
+    topggWebhookSecret: "",
     port: 3000,
     ...overrides,
   };

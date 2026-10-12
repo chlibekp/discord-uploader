@@ -12,6 +12,7 @@ import { interactionsRoutes } from "./routes/interactions.js";
 import { meRoutes } from "./routes/me.js";
 import { metricsRoutes } from "./routes/metrics.js";
 import { statsRoutes } from "./routes/stats.js";
+import { topggRoutes } from "./routes/topgg.js";
 import { uploadRoutes } from "./routes/upload.js";
 import { webRoutes, type WebRenderer } from "./web/mount.js";
 
@@ -42,6 +43,7 @@ export function createApp(deps: AppDeps): Hono<AuthEnv> {
   app.route("/", authRoutes(deps));
   app.route("/", meRoutes(deps));
   app.route("/", interactionsRoutes(deps));
+  app.route("/", topggRoutes(deps));
   app.route("/", statsRoutes(deps));
   app.route("/", metricsRoutes(deps));
   app.route("/", uploadRoutes(deps));
