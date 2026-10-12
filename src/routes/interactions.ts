@@ -13,6 +13,7 @@ import {
 import { ttlValueToMs, describeTtl } from "../ttl.js";
 import { deleteInteractionMessage } from "../discord/followup.js";
 import { logCommandExecution } from "../discord/command-log.js";
+import { hasVoted, voteUrl } from "../topgg.js";
 import {
   deleteRecord,
   expireDue,
@@ -241,6 +242,39 @@ export function interactionsRoutes(deps: AppDeps): Hono {
               },
             ],
           }),
+        ),
+      );
+    }
+
+    // The vote lock only applies while a Top.gg token is configured. Admins
+    // skip it so the bot stays usable for whoever runs it.
+    if (
+      command === "upload" &&
+      deps.config.topggToken &&
+      !isAdmin(deps.config, userId) &&
+      !(await hasVoted(deps.redis, deps.config, userId, deps.fetch))
+    ) {
+      return c.json(
+        embedReply(
+          brandedEmbed({
+            title: "🗳️ ImageUploader — Vote to upload",
+            description:
+              "Vote for the bot on top.gg to unlock `/upload` for 12 hours, " +
+              "then run `/upload` again.",
+          }),
+          [
+            {
+              type: 1,
+              components: [
+                {
+                  type: 2,
+                  style: 5,
+                  label: "Vote on top.gg",
+                  url: voteUrl(deps.config),
+                },
+              ],
+            },
+          ],
         ),
       );
     }

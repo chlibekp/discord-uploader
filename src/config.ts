@@ -21,6 +21,10 @@ export interface Config {
   adminGuildId: string;
   /** Optional Discord webhook URL for logging command executions. Empty means disabled. */
   commandLogWebhookUrl: string;
+  /** Top.gg project token. Set, it locks /upload behind a vote; empty means no lock. */
+  topggToken: string;
+  /** Top.gg v1 webhook secret (`whs_…`). Empty disables the vote webhook. */
+  topggWebhookSecret: string;
   port: number;
 }
 
@@ -121,6 +125,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       .filter(Boolean),
     adminGuildId: env.ADMIN_GUILD_ID?.trim() || "",
     commandLogWebhookUrl: env.COMMAND_LOG_WEBHOOK_URL?.trim() || "",
+    topggToken: env.TOPGG_TOKEN?.trim() || "",
+    topggWebhookSecret: env.TOPGG_WEBHOOK_SECRET?.trim() || "",
     port: positiveInt(env, "PORT", DEFAULTS.PORT),
   };
 }
